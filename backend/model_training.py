@@ -29,44 +29,44 @@ class DRRiskModel:
         try:
             features = np.zeros(len(self.feature_names))
             
-            # 1. Age
+            # 1. Age (索引0)
             features[0] = float(user_data.get('age', 50))
             
-            # 2. Diabetes duration
+            # 2. Diabetes duration (索引1)
             features[1] = float(user_data.get('duration', 5))
             
-            # 3. HbA1c level
+            # 3. HbA1c level (索引2)
             hba1c_map = {'Normal': 5.0, 'Prediabetes': 6.0, 'Type 2 Diabetes': 7.5}
             hba1c_value = user_data.get('hba1c', 'Normal')
             features[2] = hba1c_map.get(hba1c_value, 6.0)
 
-            # 4. Fasting Blood Glucose (新增)
+            # 4. Fasting Blood Glucose (索引3)
             fbg = user_data.get('fbg', '120')
             features[3] = float(fbg) if fbg else 120.0
             
-            # 4. Hypertension
-            features[3] = 1.0 if user_data.get('hypertension') == 'Yes' else 0.0
+            # 5. Hypertension (索引4)
+            features[4] = 1.0 if user_data.get('hypertension') == 'Yes' else 0.0
             
-            # 5. Nephropathy
-            features[4] = 1.0 if user_data.get('nephropathy') == 'Yes' else 0.0
+            # 6. Nephropathy (索引5)
+            features[5] = 1.0 if user_data.get('nephropathy') == 'Yes' else 0.0
             
-            # 6. Neuropathy
-            features[5] = 1.0 if user_data.get('neuropathy') == 'Yes' else 0.0
+            # 7. Neuropathy (索引6)
+            features[6] = 1.0 if user_data.get('neuropathy') == 'Yes' else 0.0
             
-            # 7. High cholesterol
-            features[6] = 1.0 if user_data.get('cholesterol') == 'Yes' else 0.0
+            # 8. High cholesterol (索引7)
+            features[7] = 1.0 if user_data.get('cholesterol') == 'Yes' else 0.0
             
-            # 8. BMI
+            # 9. BMI (索引8)
             bmi = user_data.get('bmi', 25.0)
             if isinstance(bmi, str):
                 bmi = float(bmi) if bmi.replace('.', '').isdigit() else 25.0
-            features[7] = float(bmi)
+            features[8] = float(bmi)
             
-            # 9. Smoking status
+            # 10. Smoking status (索引9)
             smoking_status = user_data.get('smoking', 'Never')
-            features[8] = 1.0 if smoking_status == 'Current' else 0.0
+            features[9] = 1.0 if smoking_status == 'Current' else 0.0
             
-            # 10. Years since last eye exam
+            # 11. Years since last eye exam (索引10)
             eye_exam_map = {
                 'Within the past year': 0.5,
                 '1-2 years ago': 1.5,
@@ -74,22 +74,22 @@ class DRRiskModel:
                 'Over 5 years ago': 7.0,
                 'Never': 10.0
             }
-            features[9] = eye_exam_map.get(user_data.get('eye_exam', 'Never'), 5.0)
+            features[10] = eye_exam_map.get(user_data.get('eye_exam', 'Never'), 5.0)
             
-            # 11. Medication adherence
+            # 12. Medication adherence (索引11)
             adherence_map = {
                 'I never miss a dose': 1.0,
                 'I rarely miss a dose': 0.8,
                 'I sometimes miss a dose': 0.5,
                 'I often miss doses': 0.2
             }
-            features[10] = adherence_map.get(user_data.get('adherence', 'I sometimes miss a dose'), 0.5)
+            features[11] = adherence_map.get(user_data.get('adherence', 'I sometimes miss a dose'), 0.5)
             
             return features.reshape(1, -1)
             
         except Exception as e:
             print(f"Error in preprocessing: {e}")
-            return np.array([[50, 5, 6.0, 0, 0, 0, 0, 25.0, 0, 5.0, 0.5]])
+            return np.array([[50, 5, 6.0, 120.0, 0, 0, 0, 0, 25.0, 0, 5.0, 0.5]])
     
     def create_training_data(self):
         """Create synthetic training data based on clinical knowledge"""
@@ -139,23 +139,23 @@ class DRRiskModel:
             # Calculate DR risk based on clinical factors
             base_risk = 0.05
             risk_factors = (
-                (diabetes_duration / 10) * 0.3 +
-                max(0, (hba1c - 6.5) / 3) * 0.25 +
+                (diabetes_duration / 10) * 0.20 +
+                max(0, (hba1c - 6.5) / 3) * 0.18 +
                 max(0, (fbg - 100) / 50) * 0.15 +
-                (1 if has_hypertension else 0) * 0.15 +
-                (1 if has_nephropathy else 0) * 0.2 +
-                (1 if has_high_cholesterol else 0) * 0.1 +
-                max(0, (bmi - 25) / 20) * 0.1 +
-                (1 if is_smoker else 0) * 0.15 +
-                (years_since_eye_exam / 5) * 0.1 +
-                (1 - medication_adherence) * 0.1
+                (1 if has_hypertension else 0) * 0.12 +
+                (1 if has_nephropathy else 0) * 0.15 +
+                (1 if has_high_cholesterol else 0) * 0.08 +
+                max(0, (bmi - 25) / 20) * 0.08 +
+                (1 if is_smoker else 0) * 0.12 +
+                (years_since_eye_exam / 5) * 0.08 +
+                (1 - medication_adherence) * 0.08
             )
             
             dr_probability = min(0.95, base_risk + risk_factors * 0.8)
             has_dr = np.random.random() < dr_probability
             
             data.append([
-                age, diabetes_duration, hba1c, has_hypertension,
+                age, diabetes_duration, hba1c, fbg, has_hypertension,
                 has_nephropathy, has_neuropathy, has_high_cholesterol,
                 bmi, is_smoker, years_since_eye_exam, medication_adherence,
                 has_dr
@@ -362,7 +362,7 @@ class DRRiskModel:
             features = self.preprocess_user_data(user_data)[0]
             explanations = []
             
-            # Age factor
+            # Age factor (索引0)
             age = features[0]
             if age > 60:
                 explanations.append({
@@ -377,7 +377,7 @@ class DRRiskModel:
                     'explanation': f'Age {int(age)} moderately affects risk'
                 })
             
-            # Diabetes duration
+            # Diabetes duration (索引1)
             duration = features[1]
             if duration > 10:
                 explanations.append({
@@ -392,7 +392,7 @@ class DRRiskModel:
                     'explanation': f'{int(duration)} years with diabetes moderately increases risk'
                 })
             
-            # HbA1c level
+            # HbA1c level (索引2)
             hba1c = features[2]
             if hba1c > 8.0:
                 explanations.append({
@@ -407,42 +407,72 @@ class DRRiskModel:
                     'explanation': f'HbA1c level of {hba1c:.1f}% needs improvement'
                 })
 
-
-            # Fasting Blood Glucose factor 
+            # Fasting Blood Glucose factor (索引3)
             fbg = features[3]
             if fbg > 180:
-              explanations.append({
-                'factor': 'Fasting Blood Glucose',
-                'impact': 'High',
-                'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL indicates poor diabetes control'
+                explanations.append({
+                    'factor': 'Fasting Blood Glucose',
+                    'impact': 'High',
+                    'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL indicates poor diabetes control'
                 })
             elif fbg > 130:
-             explanations.append({
-                'factor': 'Fasting Blood Glucose',
-                'impact': 'Medium',
-                'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL needs improvement'
-              })
-            elif fbg > 100:
-             explanations.append({
-                'factor': 'Fasting Blood Glucose', 
-                'impact': 'Low',
-                'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL is within acceptable range'
-               })
+                explanations.append({
+                    'factor': 'Fasting Blood Glucose',
+                    'impact': 'Medium',
+                    'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL needs improvement'
+                })
+            elif fbg < 70:
+                explanations.append({
+                    'factor': 'Fasting Blood Glucose',
+                    'impact': 'Medium',
+                    'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL may be too low'
+                })
              
-            # Hypertension
-            if features[3] == 1.0:
+            # Hypertension (索引4)
+            if features[4] == 1.0:
                 explanations.append({
                     'factor': 'High Blood Pressure',
                     'impact': 'Medium',
                     'explanation': 'Hypertension can accelerate retinopathy development'
                 })
             
-            # Nephropathy
-            if features[4] == 1.0:
+            # Nephropathy (索引5)
+            if features[5] == 1.0:
                 explanations.append({
                     'factor': 'Kidney Disease',
                     'impact': 'High',
                     'explanation': 'Diabetic kidney disease is closely linked to retinopathy'
+                })
+            
+            # Neuropathy (索引6)
+            if features[6] == 1.0:
+                explanations.append({
+                    'factor': 'Nerve Damage',
+                    'impact': 'Medium',
+                    'explanation': 'Diabetic neuropathy may indicate systemic complications'
+                })
+            
+            # High cholesterol (索引7)
+            if features[7] == 1.0:
+                explanations.append({
+                    'factor': 'High Cholesterol',
+                    'impact': 'Low',
+                    'explanation': 'High cholesterol can contribute to vascular complications'
+                })
+            
+            # BMI (索引8)
+            bmi = features[8]
+            if bmi > 30:
+                explanations.append({
+                    'factor': 'Body Mass Index',
+                    'impact': 'Medium',
+                    'explanation': f'BMI of {bmi:.1f} indicates obesity, which can worsen diabetes control'
+                })
+            elif bmi > 25:
+                explanations.append({
+                    'factor': 'Body Mass Index',
+                    'impact': 'Low',
+                    'explanation': f'BMI of {bmi:.1f} indicates overweight status'
                 })
             
             return explanations[:5]
@@ -464,6 +494,7 @@ if __name__ == "__main__":
         'age': '55',
         'duration': '12', 
         'hba1c': 'Type 2 Diabetes',
+        'fbg': '180',
         'hypertension': 'Yes',
         'nephropathy': 'No',
         'neuropathy': 'No',
