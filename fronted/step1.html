@@ -17,19 +17,19 @@
     button:hover { background:#4338ca; }
     .value-display { font-size:13px; color:#333; margin-top:4px; }
     .form-group div {
-  display: flex;
-  align-items: center;
-  margin-top: 6px;
-}
-   .form-group div label {
-  margin: 0; 
-  font-size: 14px;
-}
+      display: flex;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .form-group div label {
+      margin: 0; 
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
 <div class="card">
-  <h1>Rethinopathy Diabetes Risk Assessment</h1>
+  <h1>Retinopathy Diabetes Risk Assessment</h1>
   <h2>Step 1: Diabetes Basics</h2>
   <p class="instruction">
     Please complete the following questions to help us understand your basic diabetes information.
@@ -40,7 +40,7 @@
   <form id="drForm" onsubmit="return false;">
 
     <!--step 1: Age selection-->
-    <label>1)Your Age:
+    <label>1) Your Age:
       <!--Dropdown menu dynamically filled using JavaScript-->
       <select id="age">
         <option value="" disabled selected>Please select</option>
@@ -48,7 +48,7 @@
     </label>
 
     <!--step 2: Type of Diabetes-->
-    <label>2)What type of diabetes do you have?
+    <label>2) What type of diabetes do you have?
       <select id="diabetes_type">
         <option value="" disabled selected>Please select</option>
         <option>Type 1</option>
@@ -59,39 +59,44 @@
     </label>
 
     <!--Step 3: Duration-->
-    <label>3)How long have you had diabetes? (years)
+    <label>3) How long have you had diabetes? (years)
       <!-- Range slider for better user interaction -->
       <input type="range" id="duration" min="0" max="50" value="0" oninput="document.getElementById('duration_val').textContent=this.value">
       <div class="value-display">Years: <span id="duration_val">0</span></div>
     </label>
 
-    <!--Step 4:HbA1c level-->
+    <!--Step 4: HbA1c level-->
     <div class="form-group">
-  <label>4)What is your most recent HbA1c level?</label>
-  <div>
-    <input type="radio" id="hba1c_normal" name="hba1c" value="Normal">
-    <label for="hba1c_normal">&lt; 5.7% (Normal)</label>
-  </div>
-  <div>
-    <input type="radio" id="hba1c_prediabetes" name="hba1c" value="Prediabetes">
-    <label for="hba1c_prediabetes">5.7% – 6.4% (Prediabetes)</label>
-  </div>
-  <div>
-    <input type="radio" id="hba1c_diabetes" name="hba1c" value="Type 2 Diabetes">
-    <label for="hba1c_diabetes">&ge; 6.5% (Type 2 Diabetes)</label>
-  </div>
-  <div class="tooltip">You can find this result on your lab reports.</div>
-</div>
+      <label>4) What is your most recent HbA1c level?</label>
+      <div>
+        <input type="radio" id="hba1c_normal" name="hba1c" value="Normal">
+        <label for="hba1c_normal">&lt; 5.7% (Normal)</label>
+      </div>
+      <div>
+        <input type="radio" id="hba1c_prediabetes" name="hba1c" value="Prediabetes">
+        <label for="hba1c_prediabetes">5.7% – 6.4% (Prediabetes)</label>
+      </div>
+      <div>
+        <input type="radio" id="hba1c_diabetes" name="hba1c" value="Type 2 Diabetes">
+        <label for="hba1c_diabetes">&ge; 6.5% (Type 2 Diabetes)</label>
+      </div>
+      <div class="tooltip">You can find this result on your lab reports.</div>
+    </div>
 
-<!--Step 5: Management Method-->
-    <label>5)How do you manage your diabetes? (Select all that apply)</label>
+    <!--Step 5: Fasting Blood Glucose-->
+    <label>5) What is your most recent fasting blood glucose? (mg/dL)
+      <input type="number" id="fbg" min="0" max="1000" step="1" value="90">
+    </label>
+
+    <!--Step 6: Management Method-->
+    <label>6) How do you manage your diabetes? (Select all that apply)</label>
     <label><input type="checkbox" id="t_insulin"> Insulin</label>
     <label><input type="checkbox" id="t_oral"> Oral medication (pills)</label>
     <label><input type="checkbox" id="t_diet"> Diet and exercise</label>
     <label><input type="checkbox" id="t_none"> None</label>
 
-    <!--Step 6: Blood sugar Check-->
-    <label>6)How often do you check your blood sugar?
+    <!--Step 7: Blood sugar Check-->
+    <label>7) How often do you check your blood sugar?
       <select id="sugar_check">
         <option value="" disabled selected>Please select</option>
         <option>Multiple times a day</option>
@@ -101,26 +106,56 @@
       </select>
     </label>
 
-
     <!--Navigation Button-->
-    <button type="button" onclick="saveData(); location.href='step2.html'">Next</button>
+    <button type="button" onclick="saveData()">Next</button>
   </form>
 </div>
 
 <script>
-  //Populate age dropdown
+// Populate age dropdown
 const ageSelect = document.getElementById("age");
-for(let i=1; i<=120; i++) {
+for(let i = 1; i <= 120; i++) {
   const opt = document.createElement("option");
   opt.value = i;
   opt.textContent = i;
   ageSelect.appendChild(opt);
 }
 
-//Save data to localStorage or save data function
-function saveData() {
+// Validate Fasting Blood Glucose - 宽松验证
+function validateFbg() {
+  const fbg = parseInt(document.getElementById("fbg").value);
+  
+  // 只检查是否为有效数字，不限制范围
+  if (isNaN(fbg)) {
+    alert("Please enter your Fasting Blood Glucose.");
+    return false;
+  }
+  
+  // 如果值太小，给出警告但仍然允许通过
+  if (fbg < 50) {
+    if (!confirm("Warning: Fasting blood glucose value seems very low (" + fbg + " mg/dL). Min is 50.")) {
+      return false;
+    }
+  }
+  
+  // 如果值太大，给出警告但仍然允许通过
+  if (fbg > 300) {
+    if (!confirm("Warning: Fasting blood glucose value seems very high (" + fbg + " mg/dL). Max is 300.")) {
+      return false;
+    }
+  }
+  
+  return true;
+}
 
-//Get selected HbA1c option
+// Save data to localStorage
+function saveData() {
+  // Validate fasting blood glucose first
+  if (!validateFbg()) {
+    return; // 如果验证失败，不继续执行
+  }
+
+  // Get selected HbA1c option
   let hba1cChoice = "";
   const radios = document.getElementsByName("hba1c");
   for (let r of radios) {
@@ -130,12 +165,14 @@ function saveData() {
     }
   }
 
+  const fbg = parseInt(document.getElementById("fbg").value);
 
-  //Create data object for Step 1
+  // Create data object for Step 1
   const data = {
     age: document.getElementById("age").value,
     diabetes_type: document.getElementById("diabetes_type").value,
     duration: document.getElementById("duration").value,
+    fbg: fbg,
     hba1c: hba1cChoice,
     t_insulin: document.getElementById("t_insulin").checked,
     t_oral: document.getElementById("t_oral").checked,
@@ -143,30 +180,33 @@ function saveData() {
     t_none: document.getElementById("t_none").checked,
     sugar_check: document.getElementById("sugar_check").value
   };
-  //Save to localStorage
+  
+  // Save to localStorage
   localStorage.setItem("step1", JSON.stringify(data));
-  //Go to next page (Step 2)
+  
+  // Go to next page (Step 2)
   location.href = 'step2.html';
 }
 
-
-//Load saved data function
+// Load saved data function
 function loadData() {
   const data = JSON.parse(localStorage.getItem("step1") || "{}");
   if(!data) return;
+  
   document.getElementById("age").value = data.age || "";
   document.getElementById("diabetes_type").value = data.diabetes_type || "";
   document.getElementById("duration").value = data.duration || 0;
   document.getElementById("duration_val").textContent = data.duration || 0;
+  document.getElementById("fbg").value = data.fbg || 90;
 
-  //Restore checkboxes
+  // Restore checkboxes
   document.getElementById("t_insulin").checked = data.t_insulin || false;
   document.getElementById("t_oral").checked = data.t_oral || false;
   document.getElementById("t_diet").checked = data.t_diet || false;
   document.getElementById("t_none").checked = data.t_none || false;
-  document.getElementById("sugar_check").value = data.sugar_check || "Multiple times a day";
+  document.getElementById("sugar_check").value = data.sugar_check || "";
   
-  //Restore radio button selection
+  // Restore radio button selection
   if (data.hba1c) {
     const radios = document.getElementsByName("hba1c");
     for (let r of radios) {
@@ -177,10 +217,8 @@ function loadData() {
   }
 }
 
-//Call loadData when page loads
+// Call loadData when page loads
 loadData();
 </script>
 </body>
 </html>
-
-
