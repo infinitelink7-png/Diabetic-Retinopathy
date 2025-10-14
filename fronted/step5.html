@@ -154,7 +154,7 @@ function submitForm() {
   document.getElementById("result").innerHTML = "<b>Analyzing your data... Please wait.</b>";
 
   // Send data to backend API
-  fetch('http://localhost:5000/api/predict', {
+  fetch('/api/predict', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
