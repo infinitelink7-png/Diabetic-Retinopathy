@@ -111,6 +111,7 @@
     txt += "Diabetes Type: " + (step1.diabetes_type || "-") + "<br>";
     txt += "Duration: " + (step1.duration || "-") + " years<br>";
     txt += "HbA1c: " + (step1.hba1c || "-") + "<br>";
+    txt += "Fasting Blood Glucose: " + (step1.fbg || "-") + " mg/dL<br>";
     txt += "Diabetes Management: " + ((step1.t_insulin?"Insulin ":"") +
                                       (step1.t_oral?"Oral ":"") +
                                       (step1.t_diet?"Diet ":"") +
@@ -178,6 +179,29 @@
     // Add explanation factors
     explanation.forEach(factor => {
       let impactColor = '#6b7280';
+      // Fasting Blood Glucose explanation (新增)
+      const fbg = userData.fbg ? parseFloat(userData.fbg) : null;
+        if (fbg) {
+        if (fbg > 180) {
+        explanations.push({
+            'factor': 'Fasting Blood Glucose',
+            'impact': 'High',
+            'explanation': `Fasting blood glucose of ${fbg} mg/dL indicates poor diabetes control`
+           });
+        } else if (fbg > 130) {
+        explanations.push({
+            'factor': 'Fasting Blood Glucose',
+            'impact': 'Medium', 
+            'explanation': `Fasting blood glucose of ${fbg} mg/dL needs improvement`
+           });
+        } else if (fbg < 70) {
+        explanations.push({
+            'factor': 'Fasting Blood Glucose',
+            'impact': 'Medium',
+            'explanation': `Fasting blood glucose of ${fbg} mg/dL may be too low`
+           });
+    }
+}
       if (factor.impact === 'High') impactColor = '#dc2626';
       if (factor.impact === 'Medium') impactColor = '#ea580c';
       if (factor.impact === 'Low') impactColor = '#16a34a';

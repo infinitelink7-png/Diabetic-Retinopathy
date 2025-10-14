@@ -17,7 +17,7 @@ class DRRiskModel:
         self.models = {}
         self.scaler = StandardScaler()
         self.feature_names = [
-            'age', 'diabetes_duration', 'hba1c_level', 'has_hypertension',
+            'age', 'diabetes_duration', 'hba1c_level', 'fbg_level', 'has_hypertension',
             'has_nephropathy', 'has_neuropathy', 'has_high_cholesterol',
             'bmi', 'is_smoker', 'years_since_last_eye_exam', 'medication_adherence'
         ]
@@ -39,6 +39,10 @@ class DRRiskModel:
             hba1c_map = {'Normal': 5.0, 'Prediabetes': 6.0, 'Type 2 Diabetes': 7.5}
             hba1c_value = user_data.get('hba1c', 'Normal')
             features[2] = hba1c_map.get(hba1c_value, 6.0)
+
+            # 4. Fasting Blood Glucose (新增)
+            fbg = user_data.get('fbg', '120')
+            features[3] = float(fbg) if fbg else 120.0
             
             # 4. Hypertension
             features[3] = 1.0 if user_data.get('hypertension') == 'Yes' else 0.0
@@ -104,6 +108,10 @@ class DRRiskModel:
             # HbA1c - higher for diabetic patients
             hba1c = np.random.normal(7.5, 1.5) if np.random.random() > 0.3 else np.random.normal(5.8, 0.5)
             hba1c = max(4.0, min(15.0, hba1c))
+
+            # Fasting Blood Glucose 
+            fbg = np.random.normal(140, 30) if hba1c > 6.5 else np.random.normal(100, 15)
+            fbg = max(70, min(300, fbg))
             
             # Comorbidities based on clinical risk factors
             hypertension_prob = 0.3 + (age - 50) * 0.01 + diabetes_duration * 0.02
@@ -133,6 +141,7 @@ class DRRiskModel:
             risk_factors = (
                 (diabetes_duration / 10) * 0.3 +
                 max(0, (hba1c - 6.5) / 3) * 0.25 +
+                max(0, (fbg - 100) / 50) * 0.15 +
                 (1 if has_hypertension else 0) * 0.15 +
                 (1 if has_nephropathy else 0) * 0.2 +
                 (1 if has_high_cholesterol else 0) * 0.1 +
@@ -397,7 +406,29 @@ class DRRiskModel:
                     'impact': 'Medium',
                     'explanation': f'HbA1c level of {hba1c:.1f}% needs improvement'
                 })
-            
+
+
+            # Fasting Blood Glucose factor 
+            fbg = features[3]
+            if fbg > 180:
+              explanations.append({
+                'factor': 'Fasting Blood Glucose',
+                'impact': 'High',
+                'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL indicates poor diabetes control'
+                })
+            elif fbg > 130:
+             explanations.append({
+                'factor': 'Fasting Blood Glucose',
+                'impact': 'Medium',
+                'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL needs improvement'
+              })
+            elif fbg > 100:
+             explanations.append({
+                'factor': 'Fasting Blood Glucose', 
+                'impact': 'Low',
+                'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL is within acceptable range'
+               })
+             
             # Hypertension
             if features[3] == 1.0:
                 explanations.append({
