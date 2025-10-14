@@ -17,7 +17,6 @@ init_db(app)
 # 初始化模型
 model = DRRiskModel()
 
-
 # 风险评估预测（保存到数据库）
 @app.route('/api/predict', methods=['POST'])
 def predict_risk():
@@ -165,7 +164,7 @@ def generate_recommendations(prediction, explanation):
     for factor in explanation[:3]:  # Top 3 most important factors
         factor_name = factor['factor']
         
-        if 'Blood Sugar' in factor_name or 'HbA1c' in factor_name:
+        if 'Blood Sugar' in factor_name or 'HbA1c' in factor_name or 'Fasting Blood Glucose' in factor_name:
             recommendations.append({
                 'type': 'management',
                 'title': 'Optimize Blood Sugar Control',
@@ -201,8 +200,8 @@ def health_check():
     return jsonify({'status': 'healthy', 'message': 'API service is running normally'})
 
 # 服务前端HTML文件
-@app.route('/frontend/<path:filename>')
-def serve_frontend_files(filename):
+@app.route('/fronted/<path:filename>')
+def serve_fronted_files(filename):
     return send_from_directory('../fronted', filename)
 
 # 服务主页面
@@ -247,4 +246,7 @@ def redirect_history():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f" Starting Diabetic Retinopathy Risk Assessment API on port {port}")
+    print(f" Database initialized: Ready to store assessments")
+    print(f" AI Models loaded: Ready for predictions")
     app.run(debug=False, host='0.0.0.0', port=port)
