@@ -220,6 +220,31 @@ def serve_history():
 def serve_index():
     return send_from_directory('../fronted', 'step1.html')
 
+# 添加重定向路由来处理直接访问的HTML文件
+@app.route('/step1.html')
+def redirect_step1():
+    return send_from_directory('../fronted', 'step1.html')
+
+@app.route('/step2.html')
+def redirect_step2():
+    return send_from_directory('../fronted', 'step2.html')
+
+@app.route('/step3.html')
+def redirect_step3():
+    return send_from_directory('../fronted', 'step3.html')
+
+@app.route('/step4.html')
+def redirect_step4():
+    return send_from_directory('../fronted', 'step4.html')
+
+@app.route('/step5.html')
+def redirect_step5():
+    return send_from_directory('../fronted', 'step5.html')
+
+@app.route('/history.html')
+def redirect_history():
+    return send_from_directory('../fronted', 'history.html')
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
