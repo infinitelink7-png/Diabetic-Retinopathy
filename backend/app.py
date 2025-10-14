@@ -17,18 +17,191 @@ init_db(app)
 # 初始化模型
 model = DRRiskModel()
 
-# 你的所有现有API路由保持不变...
+@app.route('/')
+def index():
+    return "Diabetic Retinopathy Risk Assessment API Service is Running"
+
+# 风险评估预测（保存到数据库）
 @app.route('/api/predict', methods=['POST'])
 def predict_risk():
-    # ... 保持原有代码不变
+    try:
+        user_data = request.json
+        
+        # 生成会话ID（如果不存在）
+        session_id = user_data.get('session_id')
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        # 预测风险
+        prediction = model.predict_risk(user_data)
+        explanation = model.explain_prediction(user_data)
+        recommendations = generate_recommendations(prediction, explanation)
+        
+        # 保存到数据库
+        assessment = RiskAssessment(
+            session_id=session_id,
+            input_data=json.dumps(user_data),
+            risk_level=prediction['risk_level'],
+            risk_score=prediction['risk_score'],
+            probability=prediction['probability'],
+            explanation=json.dumps(explanation),
+            recommendations=json.dumps(recommendations)
+        )
+        
+        db.session.add(assessment)
+        db.session.commit()
+        
+        response = {
+            'success': True,
+            'prediction': prediction,
+            'explanation': explanation,
+            'recommendations': recommendations,
+            'assessment_id': assessment.id,
+            'session_id': session_id
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
+# 根据会话ID获取评估历史
 @app.route('/api/assessments/<session_id>', methods=['GET'])
 def get_session_assessments(session_id):
-    # ... 保持原有代码不变
+    try:
+        assessments = RiskAssessment.query.filter_by(session_id=session_id).order_by(RiskAssessment.created_at.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'assessments': [assessment.to_dict() for assessment in assessments],
+            'session_id': session_id
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-# ... 其他所有现有API路由都保持不变
+# 获取所有评估记录（用于管理）
+@app.route('/api/assessments', methods=['GET'])
+def get_all_assessments():
+    try:
+        assessments = RiskAssessment.query.order_by(RiskAssessment.created_at.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'assessments': [assessment.to_dict() for assessment in assessments],
+            'total_count': len(assessments)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-# ↓↓↓ 只是在这些现有路由后面添加前端服务路由 ↓↓↓
+# 获取特定的评估记录
+@app.route('/api/assessment/<assessment_id>', methods=['GET'])
+def get_assessment(assessment_id):
+    try:
+        assessment = RiskAssessment.query.get(assessment_id)
+        
+        if not assessment:
+            return jsonify({'success': False, 'error': 'Assessment not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'assessment': assessment.to_dict()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# 获取统计信息
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    try:
+        total_assessments = RiskAssessment.query.count()
+        
+        # 风险等级统计
+        risk_stats = {
+            'high': RiskAssessment.query.filter_by(risk_level='High Risk').count(),
+            'moderate': RiskAssessment.query.filter_by(risk_level='Moderate Risk').count(),
+            'low': RiskAssessment.query.filter_by(risk_level='Low Risk').count()
+        }
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_assessments': total_assessments,
+                'risk_distribution': risk_stats
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def generate_recommendations(prediction, explanation):
+    """Generate personalized recommendations"""
+    recommendations = []
+    risk_level = prediction['risk_level']
+    risk_score = prediction['risk_score']
+    
+    # Recommendations based on risk level
+    if risk_level == 'High Risk' or risk_score >= 70:
+        recommendations.append({
+            'type': 'urgent',
+            'title': 'Consult Doctor Immediately',
+            'message': 'We strongly recommend scheduling an appointment with an ophthalmologist for a comprehensive dilated eye examination within 1-3 months.',
+            'action': 'Schedule Eye Doctor Appointment'
+        })
+    elif risk_level == 'Moderate Risk' or risk_score >= 30:
+        recommendations.append({
+            'type': 'important', 
+            'title': 'Regular Monitoring',
+            'message': 'We recommend an eye examination within 6 months and close monitoring of blood sugar and blood pressure.',
+            'action': 'Schedule Eye Examination'
+        })
+    else:
+        recommendations.append({
+            'type': 'routine',
+            'title': 'Continue Screening',
+            'message': 'Please maintain good diabetes management and annual eye screening.',
+            'action': 'Continue Regular Screening'
+        })
+    
+    # Specific recommendations based on risk factors
+    for factor in explanation[:3]:  # Top 3 most important factors
+        factor_name = factor['factor']
+        
+        if 'Blood Sugar' in factor_name or 'HbA1c' in factor_name:
+            recommendations.append({
+                'type': 'management',
+                'title': 'Optimize Blood Sugar Control',
+                'message': 'Good blood sugar control is key to preventing diabetic retinopathy.',
+                'action': 'Consult Endocrinologist'
+            })
+        elif 'Blood Pressure' in factor_name:
+            recommendations.append({
+                'type': 'management',
+                'title': 'Control Blood Pressure',
+                'message': 'High blood pressure can accelerate the development of diabetic retinopathy.',
+                'action': 'Monitor and Control Blood Pressure'
+            })
+        elif 'Kidney' in factor_name or 'Nephropathy' in factor_name:
+            recommendations.append({
+                'type': 'specialist',
+                'title': 'Kidney Health',
+                'message': 'Diabetic kidney disease is closely related to retinopathy. We recommend kidney function tests.',
+                'action': 'Consult Nephrologist'
+            })
+        elif 'Diabetes Duration' in factor_name:
+            recommendations.append({
+                'type': 'monitoring',
+                'title': 'Enhanced Monitoring',
+                'message': 'Longer diabetes duration requires more frequent eye examinations.',
+                'action': 'Increase Eye Check Frequency'
+            })
+    
+    return recommendations
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'healthy', 'message': 'API service is running normally'})
 
 # 服务前端HTML文件
 @app.route('/frontend/<path:filename>')
@@ -50,6 +223,6 @@ def serve_history():
 def serve_index():
     return send_from_directory('../fronted', 'step1.html')
 
-# 你的其他现有代码保持不变...
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
