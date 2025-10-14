@@ -17,9 +17,6 @@ init_db(app)
 # 初始化模型
 model = DRRiskModel()
 
-@app.route('/')
-def index():
-    return "Diabetic Retinopathy Risk Assessment API Service is Running"
 
 # 风险评估预测（保存到数据库）
 @app.route('/api/predict', methods=['POST'])
