@@ -7,14 +7,9 @@ import json
 import uuid
 from datetime import datetime
 import os 
-import logging
 
 app = Flask(__name__)
 CORS(app)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # 初始化数据库
 init_db(app)
@@ -253,6 +248,4 @@ def redirect_history():
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
-    logger.info(f"Starting app on port {port}")
-    logger.info("Binding to host 0.0.0.0")
     app.run(host="0.0.0.0", port=port)
