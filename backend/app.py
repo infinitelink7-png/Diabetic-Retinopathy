@@ -19,20 +19,20 @@ try:
     # 初始化数据库
     init_db(app)
     db_initialized = True
-    print("✅ Database initialized successfully")
+    print(" Database initialized successfully")
 except Exception as e:
     db_initialized = False
-    print(f"❌ Database initialization failed: {e}")
+    print(f" Database initialization failed: {e}")
 
 # 初始化模型
 try:
     from model_training import DRRiskModel
     model = DRRiskModel()
     model_loaded = True
-    print("✅ AI model loaded successfully")
+    print(" AI model loaded successfully")
 except Exception as e:
     model_loaded = False
-    print(f"❌ Failed to load AI model: {e}")
+    print(f" Failed to load AI model: {e}")
 
 # 健康检查端点
 @app.route('/api/health', methods=['GET'])
@@ -320,12 +320,12 @@ if __name__ == '__main__':
     # 从环境变量获取端口，Render会自动设置PORT环境变量
     port = int(os.environ.get('PORT', 5000))
     
-    print(f"🚀 Starting Diabetic Retinopathy Risk Assessment API")
-    print(f"📍 Port: {port}")
-    print(f"🌐 Host: 0.0.0.0")
-    print(f"📊 Database initialized: {db_initialized}")
-    print(f"🤖 Model loaded: {model_loaded}")
-    print(f"⏰ Started at: {datetime.now().isoformat()}")
+    print(f" Starting Diabetic Retinopathy Risk Assessment API")
+    print(f" Port: {port}")
+    print(f" Host: 0.0.0.0")
+    print(f" Database initialized: {db_initialized}")
+    print(f" Model loaded: {model_loaded}")
+    print(f" Started at: {datetime.now().isoformat()}")
     
     # 在Render上必须绑定到0.0.0.0
     app.run(debug=False, host='0.0.0.0', port=port)
