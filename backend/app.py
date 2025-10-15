@@ -317,15 +317,18 @@ def internal_error(error):
     return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    # 从环境变量获取端口，Render会自动设置PORT环境变量
+    import os
+    from datetime import datetime
+
+    # 获取 Render 提供的 PORT 环境变量（默认为5000）
     port = int(os.environ.get('PORT', 5000))
-    
-    print(f" Starting Diabetic Retinopathy Risk Assessment API")
-    print(f" Port: {port}")
-    print(f" Host: 0.0.0.0")
-    print(f" Database initialized: {db_initialized}")
-    print(f" Model loaded: {model_loaded}")
-    print(f" Started at: {datetime.now().isoformat()}")
-    
-    # 在Render上必须绑定到0.0.0.0
-    app.run(debug=False, host='0.0.0.0', port=port)
+
+    print("🚀 Starting Diabetic Retinopathy Risk Assessment API")
+    print(f"🌐 Host: 0.0.0.0")
+    print(f"🔌 Port: {port}")
+    print(f"📦 Database initialized: {db_initialized}")
+    print(f"🤖 Model loaded: {model_loaded}")
+    print(f"🕒 Started at: {datetime.now().isoformat()}")
+
+    # Render 要求绑定 0.0.0.0
+    app.run(host='0.0.0.0', port=port)
