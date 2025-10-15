@@ -201,8 +201,8 @@ def health_check():
     return jsonify({'status': 'healthy', 'message': 'API service is running normally'})
 
 # 服务前端HTML文件
-@app.route('/frontend/<path:filename>')
-def serve_frontend_files(filename):
+@app.route('/fronted/<path:filename>')
+def serve_fronted_files(filename):
     return send_from_directory('../fronted', filename)
 
 # 服务主页面
