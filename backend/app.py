@@ -9,13 +9,24 @@ from datetime import datetime
 import os 
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///risk_assessment.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 CORS(app)
 
 # 初始化数据库
 init_db(app)
 
 # 初始化模型
-model = DRRiskModel()
+# 延迟加载模型
+model = None
+
+def get_model():
+    global model
+    if model is None:
+        print("🔄 Loading ML model...")
+        model = DRRiskModel()
+        print("✅ Model loaded successfully")
+    return model
 
 
 # 风险评估预测（保存到数据库）
@@ -28,10 +39,13 @@ def predict_risk():
         session_id = user_data.get('session_id')
         if not session_id:
             session_id = str(uuid.uuid4())
+
+        # 使用延迟加载的模型
+        current_model = get_model()
         
         # 预测风险
-        prediction = model.predict_risk(user_data)
-        explanation = model.explain_prediction(user_data)
+        prediction = current_model.predict_risk(user_data)
+        explanation = current_model.explain_prediction(user_data)
         recommendations = generate_recommendations(prediction, explanation)
         
         # 保存到数据库
@@ -246,6 +260,10 @@ def redirect_history():
     return send_from_directory('../fronted', 'history.html')
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    print("=" * 60)
+    print(f"🚀 Starting server on 0.0.0.0:{port}")
+    print(f"📁 Working Directory: {os.getcwd()}")
+    print(f"✅ Health Check: http://0.0.0.0:{port}/api/health")
+    print("=" * 60)
+    app.run(host="0.0.0.0", port=port, debug=False)
