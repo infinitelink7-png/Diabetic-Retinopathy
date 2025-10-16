@@ -8,9 +8,50 @@ import uuid
 from datetime import datetime
 import os 
 import numpy as np
+import re
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///risk_assessment.db')
+
+# 🗄️ 智能数据库配置
+def get_database_uri():
+    """
+    智能选择数据库连接
+    优先级: Render环境变量 > 本地XAMPP MySQL > SQLite
+    """
+    database_url = os.environ.get('DATABASE_URL', '')
+    
+    if database_url:
+        # 生产环境 - Render PostgreSQL
+        if database_url.startswith('postgres://'):
+            # 修复PostgreSQL连接字符串
+            fixed_url = database_url.replace('postgres://', 'postgresql://', 1)
+            print(f"📊 Using PostgreSQL: {fixed_url.split('@')[0]}...")
+            return fixed_url
+        else:
+            print(f"📊 Using custom database: {database_url.split('@')[0]}...")
+            return database_url
+    else:
+        # 开发环境 - 尝试连接XAMPP MySQL
+        try:
+            # 测试MySQL连接
+            import pymysql
+            conn = pymysql.connect(
+                host='localhost',
+                user='root',
+                password='',
+                database='dr_risk_db',
+                charset='utf8mb4'
+            )
+            conn.close()
+            mysql_url = 'mysql+pymysql://root:@localhost/dr_risk_db?charset=utf8mb4'
+            print("📊 Using XAMPP MySQL: mysql+pymysql://root:****@localhost/dr_risk_db")
+            return mysql_url
+        except Exception as e:
+            # 回退到SQLite
+            print(f"📊 MySQL not available, using SQLite: {e}")
+            return 'sqlite:///risk_assessment.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 🔧 完全开放的 CORS 配置（用于调试）
@@ -186,6 +227,85 @@ def get_stats():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/db-status', methods=['GET'])
+def db_status():
+    """检查数据库连接状态"""
+    try:
+        from models import RiskAssessment
+        # 测试数据库连接和基本操作
+        count = RiskAssessment.query.count()
+        
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        db_type = "Unknown"
+        
+        if 'mysql' in db_url:
+            db_type = "MySQL (XAMPP)"
+        elif 'postgresql' in db_url:
+            db_type = "PostgreSQL (Render)"
+        elif 'sqlite' in db_url:
+            db_type = "SQLite"
+            
+        # 隐藏密码的安全显示
+        safe_db_url = re.sub(r':([^@]+)@', ':****@', db_url)
+        
+        return jsonify({
+            'status': 'healthy',
+            'database_type': db_type,
+            'connection': safe_db_url,
+            'total_assessments': count,
+            'tables_working': True
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'database_type': 'Unknown',
+            'error': str(e),
+            'message': '数据库连接失败'
+        }), 500
+
+@app.route('/api/db-test', methods=['GET'])
+def db_test():
+    """测试数据库读写操作"""
+    try:
+        from models import RiskAssessment, db
+        from datetime import datetime
+        
+        # 创建测试记录
+        test_assessment = RiskAssessment(
+            session_id='test_session_' + str(uuid.uuid4())[:8],
+            input_data='{"test": "data"}',
+            risk_level='Low Risk',
+            risk_score=10.0,
+            probability=0.1,
+            explanation='[]',
+            recommendations='[]',
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(test_assessment)
+        db.session.commit()
+        
+        # 读取测试记录
+        test_record = RiskAssessment.query.filter_by(session_id=test_assessment.session_id).first()
+        
+        # 清理测试记录
+        if test_record:
+            db.session.delete(test_record)
+            db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '✅ 数据库读写测试成功！',
+            'test_performed': True
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'❌ 数据库测试失败: {str(e)}'
+        }), 500
 
 def generate_recommendations(prediction, explanation):
     """Generate personalized recommendations"""
