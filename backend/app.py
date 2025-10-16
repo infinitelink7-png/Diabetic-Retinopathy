@@ -12,26 +12,47 @@ import numpy as np
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///risk_assessment.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-CORS(app)
+
+# 🔧 完全开放的 CORS 配置（用于调试）
+CORS(app, 
+     resources={r"/*": {"origins": "*"}},
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     supports_credentials=False)
+
+# 添加全局 CORS 响应头
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
 
 # 初始化数据库
 init_db(app)
 
-# 初始化模型
 # 延迟加载模型
 model = None
 
 def get_model():
     global model
     if model is None:
-        print("🔄 Loading ML model...")
+        print("📄 Loading ML model...")
         model = DRRiskModel()
         print("✅ Model loaded successfully")
     return model
 
 
-@app.route('/api/predict', methods=['POST'])
+@app.route('/api/predict', methods=['POST', 'OPTIONS'])
 def predict_risk():
+    # 明确处理 OPTIONS 预检请求
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        return response, 200
+    
     try:
         user_data = request.json
         
@@ -52,9 +73,9 @@ def predict_risk():
         assessment = RiskAssessment(
             session_id=session_id,
             input_data=json.dumps(user_data),
-            risk_level=str(prediction['risk_level']),           # 确保是字符串
-            risk_score=float(prediction['risk_score']),         # 转换为 Python float
-            probability=float(prediction['probability']),       # 转换为 Python float
+            risk_level=str(prediction['risk_level']),
+            risk_score=float(prediction['risk_score']),
+            probability=float(prediction['probability']),
             explanation=json.dumps(explanation),
             recommendations=json.dumps(recommendations)
         )
@@ -67,29 +88,32 @@ def predict_risk():
             'success': True,
             'prediction': {
                 'risk_level': str(prediction['risk_level']),
-                'risk_score': int(prediction['risk_score']),     # 转换为 Python int
-                'probability': float(prediction['probability'])  # 转换为 Python float
+                'risk_score': int(prediction['risk_score']),
+                'probability': float(prediction['probability'])
             },
             'explanation': explanation,
             'recommendations': recommendations,
-            'assessment_id': str(assessment.id),  # 改为字符串
+            'assessment_id': str(assessment.id),
             'session_id': str(session_id)
         }
         
-        return jsonify(response)
+        return jsonify(response), 200
         
     except Exception as e:
         print(f"❌ Error in predict_risk: {str(e)}")
         import traceback
-        traceback.print_exc()  # 打印详细错误信息
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
 # 根据会话ID获取评估历史
-@app.route('/api/assessments/<session_id>', methods=['GET'])
+@app.route('/api/assessments/<session_id>', methods=['GET', 'OPTIONS'])
 def get_session_assessments(session_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
     try:
         assessments = RiskAssessment.query.filter_by(session_id=session_id).order_by(RiskAssessment.created_at.desc()).all()
         
@@ -102,8 +126,11 @@ def get_session_assessments(session_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # 获取所有评估记录（用于管理）
-@app.route('/api/assessments', methods=['GET'])
+@app.route('/api/assessments', methods=['GET', 'OPTIONS'])
 def get_all_assessments():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
     try:
         assessments = RiskAssessment.query.order_by(RiskAssessment.created_at.desc()).all()
         
@@ -116,8 +143,11 @@ def get_all_assessments():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # 获取特定的评估记录
-@app.route('/api/assessment/<assessment_id>', methods=['GET'])
+@app.route('/api/assessment/<assessment_id>', methods=['GET', 'OPTIONS'])
 def get_assessment(assessment_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
     try:
         assessment = RiskAssessment.query.get(assessment_id)
         
@@ -132,8 +162,11 @@ def get_assessment(assessment_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # 获取统计信息
-@app.route('/api/stats', methods=['GET'])
+@app.route('/api/stats', methods=['GET', 'OPTIONS'])
 def get_stats():
+    if request.method == 'OPTIONS':
+        return '', 200
+    
     try:
         total_assessments = RiskAssessment.query.count()
         
@@ -184,7 +217,7 @@ def generate_recommendations(prediction, explanation):
         })
     
     # Specific recommendations based on risk factors
-    for factor in explanation[:3]:  # Top 3 most important factors
+    for factor in explanation[:3]:
         factor_name = factor['factor']
         
         if 'Blood Sugar' in factor_name or 'HbA1c' in factor_name:
@@ -218,9 +251,17 @@ def generate_recommendations(prediction, explanation):
     
     return recommendations
 
-@app.route('/api/health', methods=['GET'])
+@app.route('/api/health', methods=['GET', 'OPTIONS'])
 def health_check():
-    return jsonify({'status': 'healthy', 'message': 'API service is running normally'})
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    return jsonify({
+        'status': 'healthy', 
+        'message': 'API service is running normally',
+        'cors_enabled': True,
+        'version': '1.0'
+    }), 200
 
 # 服务前端HTML文件
 @app.route('/fronted/<path:filename>')
@@ -273,5 +314,6 @@ if __name__ == "__main__":
     print(f"🚀 Starting server on 0.0.0.0:{port}")
     print(f"📁 Working Directory: {os.getcwd()}")
     print(f"✅ Health Check: http://0.0.0.0:{port}/api/health")
+    print(f"🔓 CORS: Fully enabled for all origins")
     print("=" * 60)
     app.run(host="0.0.0.0", port=port, debug=False)
