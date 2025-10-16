@@ -3,11 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from models import db
 
 def init_db(app):
-    # 配置SQLite数据库
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "assessments.db")}'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = 'your-secret-key-here'
+    # 🗄️ 使用 app.py 中的数据库配置，不再强制使用 SQLite
+    # 这样就能继承 app.py 中的智能数据库选择逻辑
     
     db.init_app(app)
     
@@ -15,3 +12,4 @@ def init_db(app):
         db.create_all()
     
     print("Database initialized successfully!")
+    print(f"Using database: {app.config['SQLALCHEMY_DATABASE_URI'].split('@')[0]}...")
