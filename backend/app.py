@@ -72,7 +72,7 @@ def predict_risk():
             },
             'explanation': explanation,
             'recommendations': recommendations,
-            'assessment_id': int(assessment.id),
+            'assessment_id': str(assessment.id),  # 改为字符串
             'session_id': str(session_id)
         }
         

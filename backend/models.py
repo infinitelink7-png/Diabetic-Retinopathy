@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import uuid
 
 # 初始化数据库对象
 db = SQLAlchemy()
@@ -7,7 +8,8 @@ db = SQLAlchemy()
 class RiskAssessment(db.Model):
     __tablename__ = 'risk_assessments'
     
-    id = db.Column(db.Integer, primary_key=True)
+    # 使用字符串 UUID 作为主键
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = db.Column(db.String(100), nullable=False)
     input_data = db.Column(db.Text, nullable=False)
     risk_level = db.Column(db.String(50), nullable=False)
@@ -19,7 +21,7 @@ class RiskAssessment(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
+            'id': self.id,  # 直接返回字符串，不需要转换
             'session_id': self.session_id,
             'input_data': self.input_data,
             'risk_level': self.risk_level,
