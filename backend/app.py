@@ -7,6 +7,7 @@ import json
 import uuid
 from datetime import datetime
 import os 
+import numpy as np
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///risk_assessment.db')
@@ -29,7 +30,6 @@ def get_model():
     return model
 
 
-# 风险评估预测（保存到数据库）
 @app.route('/api/predict', methods=['POST'])
 def predict_risk():
     try:
@@ -48,13 +48,13 @@ def predict_risk():
         explanation = current_model.explain_prediction(user_data)
         recommendations = generate_recommendations(prediction, explanation)
         
-        # 保存到数据库
+        # 保存到数据库 - 转换为 Python 原生类型
         assessment = RiskAssessment(
             session_id=session_id,
             input_data=json.dumps(user_data),
-            risk_level=prediction['risk_level'],
-            risk_score=prediction['risk_score'],
-            probability=prediction['probability'],
+            risk_level=str(prediction['risk_level']),           # 确保是字符串
+            risk_score=float(prediction['risk_score']),         # 转换为 Python float
+            probability=float(prediction['probability']),       # 转换为 Python float
             explanation=json.dumps(explanation),
             recommendations=json.dumps(recommendations)
         )
@@ -62,18 +62,26 @@ def predict_risk():
         db.session.add(assessment)
         db.session.commit()
         
+        # 返回数据 - 确保所有类型都是 JSON 可序列化的
         response = {
             'success': True,
-            'prediction': prediction,
+            'prediction': {
+                'risk_level': str(prediction['risk_level']),
+                'risk_score': int(prediction['risk_score']),     # 转换为 Python int
+                'probability': float(prediction['probability'])  # 转换为 Python float
+            },
             'explanation': explanation,
             'recommendations': recommendations,
-            'assessment_id': assessment.id,
-            'session_id': session_id
+            'assessment_id': int(assessment.id),
+            'session_id': str(session_id)
         }
         
         return jsonify(response)
         
     except Exception as e:
+        print(f"❌ Error in predict_risk: {str(e)}")
+        import traceback
+        traceback.print_exc()  # 打印详细错误信息
         return jsonify({
             'success': False,
             'error': str(e)
