@@ -3,14 +3,26 @@ import pandas as pd
 import numpy as np
 import json
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
 import xgboost as xgb
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
 import joblib
 import os
+
+# 修复 TensorFlow 导入
+try:
+    import tensorflow as tf
+    keras = tf.keras
+    layers = tf.keras.layers
+    print(f"✅ TensorFlow {tf.__version__} Loading Successfully")
+    print("✅ Keras Loading Successfully")
+except ImportError as e:
+    print(f"❌ TensorFlow Not installed: {e}")
+    print("Please install TensorFlow: pip install tensorflow")
+    exit(1)
+except Exception as e:
+    print(f"❌ TensorFlow Import Error: {e}")
+    exit(1)
 
 class DRRiskModel:
     def __init__(self):
@@ -29,44 +41,29 @@ class DRRiskModel:
         try:
             features = np.zeros(len(self.feature_names))
             
-            # 1. Age (索引0)
             features[0] = float(user_data.get('age', 50))
-            
-            # 2. Diabetes duration (索引1)
             features[1] = float(user_data.get('duration', 5))
             
-            # 3. HbA1c level (索引2)
             hba1c_map = {'Normal': 5.0, 'Prediabetes': 6.0, 'Type 2 Diabetes': 7.5}
             hba1c_value = user_data.get('hba1c', 'Normal')
             features[2] = hba1c_map.get(hba1c_value, 6.0)
 
-            # 4. Fasting Blood Glucose (索引3)
             fbg = user_data.get('fbg', '120')
             features[3] = float(fbg) if fbg else 120.0
             
-            # 5. Hypertension (索引4)
             features[4] = 1.0 if user_data.get('hypertension') == 'Yes' else 0.0
-            
-            # 6. Nephropathy (索引5)
             features[5] = 1.0 if user_data.get('nephropathy') == 'Yes' else 0.0
-            
-            # 7. Neuropathy (索引6)
             features[6] = 1.0 if user_data.get('neuropathy') == 'Yes' else 0.0
-            
-            # 8. High cholesterol (索引7)
             features[7] = 1.0 if user_data.get('cholesterol') == 'Yes' else 0.0
             
-            # 9. BMI (索引8)
             bmi = user_data.get('bmi', 25.0)
             if isinstance(bmi, str):
                 bmi = float(bmi) if bmi.replace('.', '').isdigit() else 25.0
             features[8] = float(bmi)
             
-            # 10. Smoking status (索引9)
             smoking_status = user_data.get('smoking', 'Never')
             features[9] = 1.0 if smoking_status == 'Current' else 0.0
             
-            # 11. Years since last eye exam (索引10)
             eye_exam_map = {
                 'Within the past year': 0.5,
                 '1-2 years ago': 1.5,
@@ -76,7 +73,6 @@ class DRRiskModel:
             }
             features[10] = eye_exam_map.get(user_data.get('eye_exam', 'Never'), 5.0)
             
-            # 12. Medication adherence (索引11)
             adherence_map = {
                 'I never miss a dose': 1.0,
                 'I rarely miss a dose': 0.8,
@@ -98,22 +94,18 @@ class DRRiskModel:
         
         data = []
         for i in range(n_samples):
-            # Generate realistic patient data
             age = np.random.normal(58, 12)
             age = max(20, min(90, age))
             
             diabetes_duration = np.random.exponential(8)
             diabetes_duration = min(50, diabetes_duration)
             
-            # HbA1c - higher for diabetic patients
             hba1c = np.random.normal(7.5, 1.5) if np.random.random() > 0.3 else np.random.normal(5.8, 0.5)
             hba1c = max(4.0, min(15.0, hba1c))
 
-            # Fasting Blood Glucose 
             fbg = np.random.normal(140, 30) if hba1c > 6.5 else np.random.normal(100, 15)
             fbg = max(70, min(300, fbg))
             
-            # Comorbidities based on clinical risk factors
             hypertension_prob = 0.3 + (age - 50) * 0.01 + diabetes_duration * 0.02
             has_hypertension = np.random.random() < min(0.9, hypertension_prob)
             
@@ -136,7 +128,6 @@ class DRRiskModel:
             
             medication_adherence = np.random.beta(2, 2)
             
-            # Calculate DR risk based on clinical factors
             base_risk = 0.05
             risk_factors = (
                 (diabetes_duration / 10) * 0.20 +
@@ -217,19 +208,16 @@ class DRRiskModel:
     
     def train_models(self):
         """Train all three models"""
-        print("Generating training data...")
+        print("📊 Generating training data...")
         df = self.create_training_data()
         
-        # Prepare features and target
         X = df[self.feature_names]
         y = df['has_diabetic_retinopathy']
         
-        # Split data
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
         
-        # Scale features
         X_train_scaled = self.scaler.fit_transform(X_train)
         X_test_scaled = self.scaler.transform(X_test)
         
@@ -238,13 +226,14 @@ class DRRiskModel:
         print(f"DR prevalence: {y.mean():.2%}")
         
         # Train XGBoost
-        print("Training XGBoost...")
+        print("\n🤖 Training XGBoost...")
         xgb_model = self.build_xgboost_model()
         xgb_model.fit(X_train_scaled, y_train)
         self.models['xgboost'] = xgb_model
+        print("  ✅ XGBoost trained")
         
         # Train DNN
-        print("Training DNN...")
+        print("🧠 Training DNN...")
         dnn_model = self.build_dnn_model(X_train_scaled.shape[1])
         dnn_model.fit(
             X_train_scaled, y_train,
@@ -254,9 +243,10 @@ class DRRiskModel:
             verbose=0
         )
         self.models['dnn'] = dnn_model
+        print("  ✅ DNN trained")
         
         # Train 1D-CNN
-        print("Training 1D-CNN...")
+        print("🔬 Training 1D-CNN...")
         cnn_model = self.build_1d_cnn_model(X_train_scaled.shape[1])
         cnn_model.fit(
             X_train_scaled, y_train,
@@ -266,12 +256,12 @@ class DRRiskModel:
             verbose=0
         )
         self.models['cnn'] = cnn_model
+        print("  ✅ CNN trained")
         
         # Evaluate models
         self.evaluate_models(X_test_scaled, y_test)
         
         self.is_trained = True
-        print("All models trained successfully!")
     
     def evaluate_models(self, X_test, y_test):
         """Evaluate all models on test set"""
@@ -282,7 +272,7 @@ class DRRiskModel:
                 y_pred_proba = model.predict_proba(X_test)[:, 1]
                 y_pred = (y_pred_proba > 0.5).astype(int)
             else:
-                y_pred_proba = model.predict(X_test).flatten()
+                y_pred_proba = model.predict(X_test, verbose=0).flatten()
                 y_pred = (y_pred_proba > 0.5).astype(int)
             
             accuracy = accuracy_score(y_test, y_pred)
@@ -291,30 +281,65 @@ class DRRiskModel:
     def load_or_train_models(self):
         """Load trained models or train new ones"""
         try:
-            if all(os.path.exists(f'backend/models/{name}_model.joblib') for name in ['xgboost', 'scaler']):
-                self.models['xgboost'] = joblib.load('backend/models/xgboost_model.joblib')
-                self.scaler = joblib.load('backend/models/scaler.joblib')
+            models_dir = 'backend/models'
+            xgb_path = f'{models_dir}/xgboost_model.joblib'
+            dnn_path = f'{models_dir}/dnn_model.h5'
+            cnn_path = f'{models_dir}/cnn_model.h5'
+            scaler_path = f'{models_dir}/scaler_model.joblib'
+            
+            all_models_exist = all(os.path.exists(p) for p in [xgb_path, dnn_path, cnn_path, scaler_path])
+            
+            if all_models_exist:
+                print("📂 Loading pre-trained models...")
+                
+                self.models['xgboost'] = joblib.load(xgb_path)
+                print("  ✅ XGBoost loaded")
+                
+                self.models['dnn'] = keras.models.load_model(dnn_path)
+                print("  ✅ DNN loaded")
+                
+                self.models['cnn'] = keras.models.load_model(cnn_path)
+                print("  ✅ CNN loaded")
+                
+                self.scaler = joblib.load(scaler_path)
+                print("  ✅ Scaler loaded")
+                
                 self.is_trained = True
-                print("Pre-trained models loaded successfully!")
+                print("✅ All pre-trained models loaded successfully!\n")
+                
             else:
-                print("Training new models...")
+                print("🔄 No pre-trained models found. Training new models...\n")
                 self.train_models()
-                # Save models
-                os.makedirs('backend/models', exist_ok=True)
-                joblib.dump(self.models['xgboost'], 'backend/models/xgboost_model.joblib')
-                joblib.dump(self.scaler, 'backend/models/scaler.joblib')
+                
+                os.makedirs(models_dir, exist_ok=True)
+                
+                print("\n💾 Saving models...")
+                joblib.dump(self.models['xgboost'], xgb_path)
+                print("  ✅ XGBoost saved")
+                
+                self.models['dnn'].save(dnn_path)
+                print("  ✅ DNN saved")
+                
+                self.models['cnn'].save(cnn_path)
+                print("  ✅ CNN saved")
+                
+                joblib.dump(self.scaler, scaler_path)
+                print("  ✅ Scaler saved")
+                
+                print("✅ All models trained and saved successfully!\n")
+                
         except Exception as e:
-            print(f"Error loading models: {e}. Training new models...")
-            self.train_models()
+            print(f"❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     def predict_risk(self, user_data):
         """Predict diabetic retinopathy risk using ensemble method"""
         try:
-            # Preprocess user data
             features = self.preprocess_user_data(user_data)
             features_scaled = self.scaler.transform(features)
             
-            # Get predictions from all models
             predictions = []
             
             # XGBoost prediction
@@ -333,7 +358,6 @@ class DRRiskModel:
             final_probability = np.mean(predictions)
             risk_score = int(final_probability * 100)
             
-            # Determine risk level
             if risk_score >= 70:
                 risk_level = "High Risk"
             elif risk_score >= 30:
@@ -344,12 +368,11 @@ class DRRiskModel:
             return {
                 'risk_level': risk_level,
                 'risk_score': risk_score,
-                'probability': round(final_probability, 3)
+                'probability': round(float(final_probability), 3)
             }
             
         except Exception as e:
             print(f"Prediction error: {e}")
-            # Fallback prediction
             return {
                 'risk_level': "Low Risk",
                 'risk_score': 15,
@@ -362,7 +385,6 @@ class DRRiskModel:
             features = self.preprocess_user_data(user_data)[0]
             explanations = []
             
-            # Age factor (索引0)
             age = features[0]
             if age > 60:
                 explanations.append({
@@ -377,7 +399,6 @@ class DRRiskModel:
                     'explanation': f'Age {int(age)} moderately affects risk'
                 })
             
-            # Diabetes duration (索引1)
             duration = features[1]
             if duration > 10:
                 explanations.append({
@@ -392,7 +413,6 @@ class DRRiskModel:
                     'explanation': f'{int(duration)} years with diabetes moderately increases risk'
                 })
             
-            # HbA1c level (索引2)
             hba1c = features[2]
             if hba1c > 8.0:
                 explanations.append({
@@ -407,7 +427,6 @@ class DRRiskModel:
                     'explanation': f'HbA1c level of {hba1c:.1f}% needs improvement'
                 })
 
-            # Fasting Blood Glucose factor (索引3)
             fbg = features[3]
             if fbg > 180:
                 explanations.append({
@@ -428,7 +447,6 @@ class DRRiskModel:
                     'explanation': f'Fasting blood glucose of {fbg:.0f} mg/dL may be too low'
                 })
              
-            # Hypertension (索引4)
             if features[4] == 1.0:
                 explanations.append({
                     'factor': 'High Blood Pressure',
@@ -436,7 +454,6 @@ class DRRiskModel:
                     'explanation': 'Hypertension can accelerate retinopathy development'
                 })
             
-            # Nephropathy (索引5)
             if features[5] == 1.0:
                 explanations.append({
                     'factor': 'Kidney Disease',
@@ -444,7 +461,6 @@ class DRRiskModel:
                     'explanation': 'Diabetic kidney disease is closely linked to retinopathy'
                 })
             
-            # Neuropathy (索引6)
             if features[6] == 1.0:
                 explanations.append({
                     'factor': 'Nerve Damage',
@@ -452,7 +468,6 @@ class DRRiskModel:
                     'explanation': 'Diabetic neuropathy may indicate systemic complications'
                 })
             
-            # High cholesterol (索引7)
             if features[7] == 1.0:
                 explanations.append({
                     'factor': 'High Cholesterol',
@@ -460,7 +475,6 @@ class DRRiskModel:
                     'explanation': 'High cholesterol can contribute to vascular complications'
                 })
             
-            # BMI (索引8)
             bmi = features[8]
             if bmi > 30:
                 explanations.append({
@@ -485,8 +499,12 @@ class DRRiskModel:
                 'explanation': 'Standard diabetes management recommended'
             }]
 
-# For testing
 if __name__ == "__main__":
+    print("="*60)
+    print("🏥 DR Risk Assessment - 3 Model Ensemble Training")
+    print("="*60)
+    print()
+    
     model = DRRiskModel()
     
     # Test prediction
@@ -505,8 +523,22 @@ if __name__ == "__main__":
         'adherence': 'I sometimes miss a dose'
     }
     
+    print("="*60)
+    print("🧪 Testing prediction with sample data...")
+    print("="*60)
+    
     prediction = model.predict_risk(test_data)
     explanation = model.explain_prediction(test_data)
     
-    print("Prediction:", prediction)
-    print("Explanation:", explanation)
+    print("\n📊 Prediction Results:")
+    print(f"  Risk Level: {prediction['risk_level']}")
+    print(f"  Risk Score: {prediction['risk_score']}/100")
+    print(f"  Probability: {prediction['probability']}")
+    
+    print("\n💡 Risk Factors:")
+    for exp in explanation:
+        print(f"  • {exp['factor']} ({exp['impact']} impact): {exp['explanation']}")
+    
+    print("\n" + "="*60)
+    print("✅ All systems operational!")
+    print("="*60)
