@@ -179,29 +179,6 @@
     // Add explanation factors
     explanation.forEach(factor => {
       let impactColor = '#6b7280';
-      // Fasting Blood Glucose explanation (新增)
-      const fbg = userData.fbg ? parseFloat(userData.fbg) : null;
-        if (fbg) {
-        if (fbg > 180) {
-        explanations.push({
-            'factor': 'Fasting Blood Glucose',
-            'impact': 'High',
-            'explanation': `Fasting blood glucose of ${fbg} mg/dL indicates poor diabetes control`
-           });
-        } else if (fbg > 130) {
-        explanations.push({
-            'factor': 'Fasting Blood Glucose',
-            'impact': 'Medium', 
-            'explanation': `Fasting blood glucose of ${fbg} mg/dL needs improvement`
-           });
-        } else if (fbg < 70) {
-        explanations.push({
-            'factor': 'Fasting Blood Glucose',
-            'impact': 'Medium',
-            'explanation': `Fasting blood glucose of ${fbg} mg/dL may be too low`
-           });
-    }
-}
       if (factor.impact === 'High') impactColor = '#dc2626';
       if (factor.impact === 'Medium') impactColor = '#ea580c';
       if (factor.impact === 'Low') impactColor = '#16a34a';
@@ -230,14 +207,17 @@
       if (rec.type === 'important') typeColor = '#ea580c';
       if (rec.type === 'routine') typeColor = '#16a34a';
       
+      // 转义引号避免 JavaScript 错误
+      const safeAction = rec.action.replace(/'/g, "\\'");
+      
       resultHTML += `
         <div class="recommendation-item" style="border-left-color: ${typeColor};">
-          <div style="display: flex; justify-content: between; align-items: start;">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
             <div style="flex: 1;">
               <strong style="color: ${typeColor};">${rec.title}</strong>
               <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
             </div>
-            <button onclick="alert('${rec.action} action would be triggered here.')" 
+            <button onclick="alert('${safeAction} action would be triggered here.')" 
                     style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
               ${rec.action}
             </button>
@@ -295,15 +275,22 @@
     `;
 
     // Send data to backend API
-    fetch('https://diabetic-retinopathy-195u.onrender.com/api/predict', {
+    fetch('/api/predict', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(userData)
     })
-    .then(response => response.json())
+    .then(response => {
+      console.log("Response status:", response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then(data => {
+      console.log("Response data:", data);
       if(data.success) {
         // Display results
         displayResults(data);
@@ -316,12 +303,13 @@
       }
     })
     .catch(error => {
+      console.error('Fetch error:', error);
       document.getElementById("result").innerHTML = `
         <div class="error-message">
-          <strong>Connection Error:</strong> Cannot connect to analysis service. Please check your internet connection and try again.
+          <strong>Connection Error:</strong> ${error.message}<br>
+          <small>Please check if the backend service is running.</small>
         </div>
       `;
-      console.error('Error:', error);
     })
     .finally(() => {
       // Re-enable submit button
