@@ -79,7 +79,11 @@ def get_model():
     global model
     if model is None:
         print("📄 Loading ML model...")
+<<<<<<< HEAD
         model = DRRiskModel()  # 会自动训练或加载
+=======
+        model = DRRiskModel()
+>>>>>>> 3e95ae64aaccf64b1bd02e97a3536f7dc828c1f9
         print("✅ Model loaded successfully")
     return model
 
