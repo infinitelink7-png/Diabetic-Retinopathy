@@ -176,10 +176,7 @@ class DRRiskModel:
         self.is_trained = True
     
     def preprocess_user_data(self, user_data):
-    """
-    预处理用户数据 - 将前端格式转换为CSV训练数据格式
-    """
-    try:
+     try:
         print("\n" + "="*60)
         print("🔄 PREPROCESSING USER DATA")
         print("="*60)
@@ -266,7 +263,7 @@ class DRRiskModel:
         
         return features
         
-    except Exception as e:
+     except Exception as e:
         print(f"❌ Error in preprocessing: {e}")
         import traceback
         traceback.print_exc()
