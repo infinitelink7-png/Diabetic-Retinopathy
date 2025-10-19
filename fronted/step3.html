@@ -1,0 +1,206 @@
+<!doctype html>
+<head>
+  <title>Retinopathy Diabetes Risk Assessment</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f6f8fb; padding:20px; }
+    .card { background:#fff; max-width:900px; margin:auto; padding:20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+    h1 { font-size:22px; margin-bottom:10px; }
+    h2 { font-size:18px; margin-top:20px; }
+    label { display:block; margin-top:12px; font-size:14px; }
+    input, select { width:100%; padding:8px; margin-top:4px; border:1px solid #ccc; border-radius:6px; }
+    input[type="radio"] { width:auto; margin-right:6px; }
+    button { margin-top:16px; padding:10px 14px; background:#4f46e5; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+    button:hover { background:#4338ca; }
+    .row { display:flex; gap:10px; }
+    .unit-toggle { margin:10px 0; }
+    .bmi-display { margin-top:12px; font-size:14px; font-weight:bold; }
+    .vitals-section {
+     margin-top: 25px;padding-top: 15px;}
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Retinopathy Diabetes Risk Assessment</h1>
+  <h2>Step 3: Lifestyle & Physical Metrics</h2>
+  <p class="instruction">
+    In this step, please provide your lifestyle habits and body measurements.
+    Your Body Mass Index (BMI) will be calculated automatically based on the data you enter.
+    This information helps assess your overall health risk related to diabetic retinopathy.
+  </p>
+
+  <!-- form-->
+  <form id="drForm" onsubmit="return false;">
+    
+    <!--Step 12:smoking status? and a dropdown for users to select smoking habits-->
+    <label>12)What is your smoking status?
+      <select id="smoking">
+        <option value="" selected disabled>Please select</option>
+        <option>Never Smoked</option>
+        <option>Former Smoker</option>
+        <option>Current Smoker</option>
+      </select>
+    </label>
+
+
+    <!--Step 13: Enter your vitals with unit selection-->
+    <div class="vitals-section">
+      <div class="vitals-label">13) Enter your vitals (Height and Weight)</div>
+    </div>
+
+    <!--Unit System Selection, Users can toggle between Metric and Imperial-->
+    <div class="unit-toggle">
+      <label><input type="radio" name="unit" value="metric" checked> Metric (cm / kg)</label>
+      <label><input type="radio" name="unit" value="imperial"> Imperial (ft / in / lbs)</label>
+    </div>
+
+    <!--Metric input field-->
+    <div id="metric-fields" class="row">
+      <label>Height (cm): <input type="number" id="height_cm" min="50" max="250" step="1" placeholder="cm"></label>
+      <label>Weight (kg): <input type="number" id="weight_kg" min="10" max="300" step="0.1" placeholder="kg"></label>
+    </div>
+
+    <!--Imperial inout fields-->
+<div id="imperial-fields" class="row" style="display:none;">
+  <label>Height (ft):
+    <select id="height_ft">
+      <option value="" selected disabled>Please select</option>
+      <option>3</option>
+      <option>4</option>
+      <option>5</option>
+      <option>6</option>
+      <option>7</option>
+      <option>8</option>
+    </select>
+  </label>
+  <label>Height (in):
+    <select id="height_in">
+      <option value="" selected disabled>Please select</option>
+      <option>0</option>
+      <option>1</option>
+      <option>2</option>
+      <option>3</option>
+      <option>4</option>
+      <option>5</option>
+      <option>6</option>
+      <option>7</option>
+      <option>8</option>
+      <option>9</option>
+      <option>10</option>
+      <option>11</option>
+    </select>
+  </label>
+  <label>Weight (lbs): 
+    <input type="number" id="weight_lbs" min="20" max="600" step="1" placeholder="lbs">
+  </label>
+</div>
+
+    <!--BMI display-->
+    <div class="bmi-display" id="bmi-result">Your BMI: —</div>
+
+    <!--Navigation buttons-->
+    <div class="row">
+      <button type="button" onclick="saveData(); location.href='step2.html'">Previous</button>
+      <button type="button" onclick="saveData(); location.href='step4.html'">Next</button>
+    </div>
+  </form>
+</div>
+
+<!--Javascripts section-->
+<script>
+const $ = id => document.getElementById(id); //Shortcut function to get elements by ID
+
+
+//calcBMI()
+function calcBMI() {
+  let bmi = null;
+  let category = "";
+
+  //Metric Calculation
+  if (document.querySelector('input[name="unit"]:checked').value === "metric") {
+    const h = parseFloat($("height_cm").value);
+    const w = parseFloat($("weight_kg").value);
+    if (h > 0 && w > 0) bmi = w / Math.pow(h/100, 2);
+  
+  //Imperial Calculation
+  } else {
+    const ft = parseFloat($("height_ft").value);
+    const inch = parseFloat($("height_in").value);
+    const w = parseFloat($("weight_lbs").value);
+    if (ft >= 0 && inch >= 0 && w > 0) {
+      const h_m = ((ft*12) + inch) * 0.0254; //Convert height to meters
+      const w_kg = w * 0.453592; //Convert weight to kg
+      bmi = w_kg / (h_m*h_m);
+    }
+  }
+
+  //Determine BMI category
+  if (bmi) {
+    if (bmi < 18.5) category = "Underweight";
+    else if (bmi < 25) category = "Normal";
+    else if (bmi < 30) category = "Overweight";
+    else category = "Obese";
+    $("bmi-result").textContent = `Your BMI: ${bmi.toFixed(1)} (${category})`;
+  } else {
+    $("bmi-result").textContent = "Your BMI: —";
+  }
+
+  return { bmi: bmi ? bmi.toFixed(1) : null, bmi_category: category }; //Return BMI for saving
+}
+
+
+document.querySelectorAll('input[name="unit"]').forEach(radio=>{
+  radio.addEventListener("change", ()=>{
+    $("metric-fields").style.display = radio.value==="metric" ? "flex":"none";
+    $("imperial-fields").style.display = radio.value==="imperial" ? "flex":"none";
+    calcBMI();
+  });
+});
+
+//Recalculates BMI whenever user edits height/weight
+["height_cm","weight_kg","height_ft","height_in","weight_lbs"].forEach(id=>{
+  const el = $(id);
+  if (el) el.addEventListener("input", calcBMI);
+  if (el && el.tagName==="SELECT") el.addEventListener("change", calcBMI);
+});
+
+//Stores user answers and BMI results in localStorage
+function saveData() {
+  const bmiData = calcBMI();
+  const data = {
+    smoking: $("smoking").value,
+    unit: document.querySelector('input[name="unit"]:checked').value,
+    height_cm: $("height_cm").value,
+    weight_kg: $("weight_kg").value,
+    height_ft: $("height_ft").value,
+    height_in: $("height_in").value,
+    weight_lbs: $("weight_lbs").value,
+    bmi: bmiData.bmi,            
+    bmi_category: bmiData.bmi_category
+  };
+  localStorage.setItem("step3", JSON.stringify(data));
+}
+
+
+//Automatically loads saved responses when users go back to previous steps  
+function loadData() {
+  const data = JSON.parse(localStorage.getItem("step3") || "{}");
+ 
+  //Restore unit system view
+  if (!data) return;
+  $("smoking").value = data.smoking || "";
+  if (data.unit==="imperial") {
+    document.querySelector('input[value="imperial"]').checked = true;
+    $("metric-fields").style.display="none";
+    $("imperial-fields").style.display="flex";
+  }
+  //Restore user-entered height & weight
+  ["height_cm","weight_kg","height_ft","height_in","weight_lbs"].forEach(id=>{
+    if (data[id]) $(id).value = data[id];
+  });
+  calcBMI();
+}
+//Load data automatically on page start
+loadData();
+</script>
+</body>
+</html>

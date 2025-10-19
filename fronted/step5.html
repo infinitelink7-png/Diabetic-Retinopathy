@@ -1,0 +1,330 @@
+<!doctype html>
+<head>
+  <title>Retinopathy Diabetics Risk Assessment</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f6f8fb; padding:20px; }
+    .card { background:#fff; max-width:900px; margin:auto; padding:20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+    h1 { font-size:22px; margin-bottom:10px; }
+    h2 { font-size:18px; margin-top:20px; }
+    label { display:block; margin-top:12px; font-size:14px; }
+    input[type="checkbox"] { width:auto; margin-right:6px; }
+    button { margin-top:16px; padding:10px 14px; background:#4f46e5; color:#fff; border:none; border-radius:6px; cursor:pointer; margin-right: 10px; }
+    button:hover { background:#4338ca; }
+    .review-box { background:#f9fafb; padding:10px; border-radius:6px; font-size:14px; line-height:1.5; }
+    .result-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .risk-high { color: #dc2626; font-weight: bold; }
+    .risk-moderate { color: #ea580c; font-weight: bold; }
+    .risk-low { color: #16a34a; font-weight: bold; }
+    .recommendation-item {
+      background: white;
+      border-left: 4px solid #4f46e5;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 4px;
+    }
+    .factor-item {
+      background: #f8fafc;
+      padding: 8px 12px;
+      margin: 5px 0;
+      border-radius: 4px;
+      border-left: 3px solid #94a3b8;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+    .error-message {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Retinopathy Diabetics Risk Assessment</h1>
+  <h2>Step 5: Review & Consent</h2>
+  <p style="font-size:14px; color:#555;">
+    This is the final step of the Diabetic Retinopathy Risk Assessment.  
+    Please carefully review all your previous responses from Steps 1–4.  
+    Once you confirm the information is correct, kindly provide your consent for data use and submit for AI-based analysis.
+  </p>
+  
+  <form id="drForm" onsubmit="return false;">
+    
+    <!--Review section-->
+    <h2>Review Your Information</h2>
+    <div id="reviewBox" class="review-box"></div>
+    
+    <!--Privacy & consent-->
+    <p style="margin-top:10px;font-size:13px;">
+      <b>Privacy Statement:</b> Your health data is encrypted and anonymized for analysis. We adhere to strict data protection regulations like HIPAA/GDPR. This data will only be used to generate your risk assessment and, with your consent, to improve our AI model.
+    </p>
+
+    <label>
+      <input type="checkbox" id="consent"> I have reviewed my information and agree to the terms of use and privacy policy.
+    </label>
+
+    <!--Navigation buttons-->
+    <div style="margin-top: 20px;">
+      <button type="button" onclick="location.href='step4.html'">Previous</button>
+      <button type="button" onclick="submitForm()" id="submitBtn">Submit for Analysis</button>
+    </div>
+    
+  </form>
+
+  <!--Submission result display-->
+  <div id="result" style="margin-top:15px;"></div>
+</div>
+
+<script>
+  // Retrieve all previous step data
+  function gatherAllData() {
+    const data = {};
+    ["step1","step2","step3","step4"].forEach(step => {
+      Object.assign(data, JSON.parse(localStorage.getItem(step) || "{}"));
+    });
+    return data;
+  }
+
+  // Fill the review box with all user data
+  function fillReview() {
+    const step1 = JSON.parse(localStorage.getItem("step1") || "{}");
+    const step2 = JSON.parse(localStorage.getItem("step2") || "{}");
+    const step3 = JSON.parse(localStorage.getItem("step3") || "{}");
+    const step4 = JSON.parse(localStorage.getItem("step4") || "{}");
+
+    let txt = "";
+
+    txt += "<u>Step 1: Diabetes Basics</u><br>";
+    txt += "Age: " + (step1.age || "-") + "<br>";
+    txt += "Diabetes Type: " + (step1.diabetes_type || "-") + "<br>";
+    txt += "Duration: " + (step1.duration || "-") + " years<br>";
+    txt += "HbA1c: " + (step1.hba1c || "-") + "<br>";
+    txt += "Fasting Blood Glucose: " + (step1.fbg || "-") + " mg/dL<br>";
+    txt += "Diabetes Management: " + ((step1.t_insulin?"Insulin ":"") +
+                                      (step1.t_oral?"Oral ":"") +
+                                      (step1.t_diet?"Diet ":"") +
+                                      (step1.t_none?"None ":"") || "-") + "<br>";
+    txt += "Blood Sugar Check Frequency: " + (step1.sugar_check || "-") + "<br><br>";
+
+    txt += "<u>Step 2: Diabetes-Related Health</u><br>";
+    txt += "Hypertension: " + (step2.hypertension || "-") + "<br>";
+    if(step2.hypertension === "Yes"){
+      txt += "BP Systolic/Diastolic: " + (step2.bp_sys || "-") + "/" + (step2.bp_dia || "-") + " mmHg<br>";
+    }
+    txt += "Nephropathy: " + (step2.nephropathy || "-") + "<br>";
+    txt += "Neuropathy: " + (step2.neuropathy || "-") + "<br>";
+    txt += "High Cholesterol: " + (step2.cholesterol || "-") + "<br><br>";
+
+    txt += "<u>Step 3: Lifestyle & Body Metrics</u><br>";
+    txt += "Smoking Status: " + (step3.smoking || "-") + "<br>";
+
+    if(step3.unit === "metric"){
+      txt += "Height: " + (step3.height_cm || "-") + " cm<br>";
+      txt += "Weight: " + (step3.weight_kg || "-") + " kg<br>";
+    } else if(step3.unit === "imperial"){
+      txt += "Height: " + (step3.height_ft || "-") + " ft " + (step3.height_in || "-") + " in<br>";
+      txt += "Weight: " + (step3.weight_lbs || "-") + " lbs<br>";
+    }
+
+    txt += "BMI: " + (step3.bmi || "-") + " (" + (step3.bmi_category || "-") + ")<br><br>";
+
+    txt += "<u>Step 4: Eye Health & Medication Habits</u><br>";
+    txt += "Last Dilated Eye Exam: " + (step4.eye_exam || "-") + "<br>";
+    txt += "Diagnosed with Diabetic Retinopathy: " + (step4.dr_diag || "-") + "<br>";
+    txt += "Vision Problems: " + (step4.vision_problems ? step4.vision_problems.join(", ") : "-") + "<br>";
+    txt += "Medication Adherence: " + (step4.adherence || "-") + "<br>";
+
+    document.getElementById("reviewBox").innerHTML = txt;
+  }
+
+  // Display prediction results
+  function displayResults(data) {
+    const result = data.prediction;
+    const explanation = data.explanation;
+    const recommendations = data.recommendations;
+    
+    let resultHTML = `
+      <div class="result-box">
+        <h3 style="text-align: center; margin-bottom: 20px;">Assessment Results</h3>
+        
+        <div style="text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <div class="risk-${result.risk_level.toLowerCase().replace(' ', '-')}" style="font-size: 28px; margin-bottom: 10px;">
+            ${result.risk_level}
+          </div>
+          <div style="font-size: 20px; margin: 10px 0; color: #374151;">
+            Risk Score: <strong>${result.risk_score}/100</strong>
+          </div>
+          <div style="color: #6b7280; font-size: 14px;">
+            Probability: ${(result.probability * 100).toFixed(1)}%
+          </div>
+        </div>
+        
+        <div style="margin: 25px 0;">
+          <h4 style="color: #374151; margin-bottom: 15px;">📊 Key Factors Influencing Your Risk:</h4>
+          <div>
+    `;
+    
+    // Add explanation factors
+    explanation.forEach(factor => {
+      let impactColor = '#6b7280';
+      if (factor.impact === 'High') impactColor = '#dc2626';
+      if (factor.impact === 'Medium') impactColor = '#ea580c';
+      if (factor.impact === 'Low') impactColor = '#16a34a';
+      
+      resultHTML += `
+        <div class="factor-item">
+          <strong>${factor.factor}</strong>
+          <span style="color: ${impactColor}; font-weight: bold; margin-left: 10px;">(${factor.impact} impact)</span>
+          <div style="color: #6b7280; margin-top: 5px; font-size: 13px;">${factor.explanation}</div>
+        </div>
+      `;
+    });
+    
+    resultHTML += `
+          </div>
+        </div>
+        
+        <div style="margin: 25px 0;">
+          <h4 style="color: #374151; margin-bottom: 15px;">💡 Personalized Recommendations:</h4>
+    `;
+    
+    // Add recommendations
+    recommendations.forEach(rec => {
+      let typeColor = '#4f46e5';
+      if (rec.type === 'urgent') typeColor = '#dc2626';
+      if (rec.type === 'important') typeColor = '#ea580c';
+      if (rec.type === 'routine') typeColor = '#16a34a';
+      
+      // 转义引号避免 JavaScript 错误
+      const safeAction = rec.action.replace(/'/g, "\\'");
+      
+      resultHTML += `
+        <div class="recommendation-item" style="border-left-color: ${typeColor};">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+              <strong style="color: ${typeColor};">${rec.title}</strong>
+              <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
+            </div>
+            <button onclick="alert('${safeAction} action would be triggered here.')" 
+                    style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+              ${rec.action}
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    
+    resultHTML += `
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+          <a href="history.html" class="btn" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            📋 View Your Assessment History
+          </a>
+          <button onclick="window.print()" style="background: #6b7280; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">
+            🖨️ Print Results
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById("result").innerHTML = resultHTML;
+  }
+
+  // Form submission & API call
+  function submitForm() {
+    if(!document.getElementById("consent").checked){
+      alert("Please agree to the terms before submitting.");
+      return;
+    }
+
+    // Disable submit button to prevent multiple submissions
+    const submitBtn = document.getElementById("submitBtn");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Analyzing...";
+
+    // Gather all data
+    const userData = gatherAllData();
+    
+    // Generate or get session ID
+    let sessionId = localStorage.getItem('session_id');
+    if (!sessionId) {
+      sessionId = generateSessionId();
+      localStorage.setItem('session_id', sessionId);
+    }
+    userData.session_id = sessionId;
+    
+    // Show loading message
+    document.getElementById("result").innerHTML = `
+      <div class="loading">
+        <div style="font-size: 16px; margin-bottom: 10px;">🔍 Analyzing your data with AI...</div>
+        <div style="font-size: 14px; color: #6b7280;">This may take a few moments</div>
+      </div>
+    `;
+
+    // Send data to backend API
+    fetch('/api/predict', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData)
+    })
+    .then(response => {
+      console.log("Response status:", response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log("Response data:", data);
+      if(data.success) {
+        // Display results
+        displayResults(data);
+      } else {
+        document.getElementById("result").innerHTML = `
+          <div class="error-message">
+            <strong>Analysis Error:</strong> ${data.error || "Analysis failed. Please try again."}
+          </div>
+        `;
+      }
+    })
+    .catch(error => {
+      console.error('Fetch error:', error);
+      document.getElementById("result").innerHTML = `
+        <div class="error-message">
+          <strong>Connection Error:</strong> ${error.message}<br>
+          <small>Please check if the backend service is running.</small>
+        </div>
+      `;
+    })
+    .finally(() => {
+      // Re-enable submit button
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit for Analysis";
+    });
+  }
+
+  // Generate session ID
+  function generateSessionId() {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  // Initialize page
+  fillReview();
+</script>
+</body>
+</html>

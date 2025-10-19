@@ -1,0 +1,124 @@
+<!doctype html>
+<head>
+  <title>Retinopathy Diabetics Risk Assessment</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f6f8fb; padding:20px; }
+    .card { background:#fff; max-width:900px; margin:auto; padding:20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+    h1 { font-size:22px; margin-bottom:10px; }
+    h2 { font-size:18px; margin-top:20px; }
+    label { display:block; margin-top:12px; font-size:14px; }
+    input, select { width:100%; padding:8px; margin-top:4px; border:1px solid #ccc; border-radius:6px; }
+    input[type="checkbox"] { width:auto; margin-right:6px; }
+    button { margin-top:16px; padding:10px 14px; background:#4f46e5; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+    button:hover { background:#4338ca; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Retinopathy Diabetics Risk Assessment</h1>
+  <h2>Step 4: Eye Health & Medication Habits</h2>
+  <p style="font-size:14px; color:#555;">
+    In this step, please provide details related to your eye health and medication habits. 
+    This helps assess whether your eye care routine and medication adherence could influence your risk of diabetic retinopathy. 
+    Make sure all answers reflect your most recent experiences.
+  </p>
+
+  <form id="drForm" onsubmit="return false;">
+    
+    <!--Step 13: last dilated eye exam?-->
+    <label>13)When was your last dilated eye exam?
+      <select id="eye_exam">
+        <option value="" disabled selected>Please select</option>
+        <option>Less than 1 year ago</option>
+        <option>1-2 years ago</option>
+        <option>More than 2 years ago</option>
+        <option>Never</option>
+      </select>
+    </label>
+
+    <!--Step 14:Doagnosed with diabetics retinopathy-->
+    <label>14)Have you ever been diagnosed with diabetic retinopathy?
+      <select id="dr_diag">
+        <option value="" disabled selected>Please select</option>
+        <option>Yes</option>
+        <option>No</option>
+        <option>Not Sure</option>
+      </select>
+    </label>
+
+    <!--Step 15:Any vision problems-->
+    <label>15)Are you currently experiencing any vision problems? (Select all that apply)</label>
+    <label><input type="checkbox" id="vision_blur"> Blurriness</label>
+    <label><input type="checkbox" id="vision_floaters"> Floaters (specks or strings)</label>
+    <label><input type="checkbox" id="vision_fluctuating"> Fluctuating vision</label>
+    <label><input type="checkbox" id="vision_loss"> Sudden vision loss</label>
+    <label><input type="checkbox" id="vision_none"> None of the above</label>
+
+    <!--Step 16:Miss taking your diabetes medication?-->
+    <label>16)How often do you miss taking your diabetes medication as prescribed?
+      <select id="adherence">
+        <option value="" disabled selected>Please select</option>
+        <option>I never miss a dose</option>
+        <option>I occasionally miss doses</option>
+        <option>I often forget to take it</option>
+        <option>I do not take any medication</option>
+      </select>
+    </label>
+
+    <!--Navigation Button-->
+    <div class="row">
+      <button type="button" onclick="saveData(); location.href='step3.html'">Previous</button>
+      <button type="button" onclick="saveData(); location.href='step5.html'">Next</button>
+    </div>
+  </form>
+</div>
+
+<script>
+//Collects all answers from Step 4 and saves them into localStorage
+function saveData() {
+  const vision = [];
+  //// Collect all selected vision symptoms
+  if(document.getElementById('vision_blur').checked) vision.push('Blurriness');
+  if(document.getElementById('vision_floaters').checked) vision.push('Floaters');
+  if(document.getElementById('vision_fluctuating').checked) vision.push('Fluctuating vision');
+  if(document.getElementById('vision_loss').checked) vision.push('Sudden vision loss');
+  if(document.getElementById('vision_none').checked) vision.push('None of the above');
+
+  //Create data object
+  const data = {
+    eye_exam: document.getElementById('eye_exam').value,
+    dr_diag: document.getElementById('dr_diag').value,
+    vision_problems: vision,
+    adherence: document.getElementById('adherence').value
+  };
+
+  //Save as JSON in localStorage
+  localStorage.setItem("step4", JSON.stringify(data));
+}
+
+//Restores saved answers if the user navigates back to this step.
+function loadData() {
+  const data = JSON.parse(localStorage.getItem('step4') || '{}');
+  if(!data) return;
+
+  //Restore dropdown selections
+  document.getElementById('eye_exam').value = data.eye_exam || "";
+  document.getElementById('dr_diag').value = data.dr_diag || "";
+  document.getElementById('adherence').value = data.adherence || "";
+
+  //Restore checkbox selections
+  if(data.vision_problems){
+    document.getElementById('vision_blur').checked = data.vision_problems.includes('Blurriness');
+    document.getElementById('vision_floaters').checked = data.vision_problems.includes('Floaters');
+    document.getElementById('vision_fluctuating').checked = data.vision_problems.includes('Fluctuating vision');
+    document.getElementById('vision_loss').checked = data.vision_problems.includes('Sudden vision loss');
+    document.getElementById('vision_none').checked = data.vision_problems.includes('None of the above');
+  }
+}
+
+//Automatically load saved data when page opens
+loadData();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<head>
+  <title>Diabetes Risk Assessment - Step 2</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f6f8fb; padding:20px; }
+    .card { background:#fff; max-width:900px; margin:auto; padding:20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+    h1 { font-size:22px; margin-bottom:10px; }
+    h2 { font-size:18px; margin-top:20px; }
+    label { display:block; margin-top:12px; font-size:14px; }
+    input, select { width:100%; padding:8px; margin-top:4px; border:1px solid #ccc; border-radius:6px; }
+    input[type="number"] { text-align:center; }
+    button { margin-top:16px; padding:10px 14px; background:#4f46e5; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+    button:hover { background:#4338ca; }
+    .hidden { display:none; } /* Hidden class used to hide BP fields when not needed */
+    .row { display:flex; gap:10px; margin-top:20px; } /* Layout for navigation buttons */
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Rethinopathy Diabetes Risk Assessment</h1>
+  <h2>Step 2: Diabetes-Related Health</h2>
+  <p class="instruction">
+    In this step, please answer questions about your other health conditions related to diabetes.
+    This helps assess additional factors that may influence your retinopathy risk.
+  </p>
+
+  <form id="drForm" onsubmit="return false;">
+
+    <!--Step 8:Have diagnosed with high blood pressure?-->
+    <label>8)Have you ever been diagnosed with high blood pressure (Hypertension)?
+      <select id="hypertension" onchange="toggleBP()">
+        <option value="" disabled selected>Please select</option>
+        <option>Yes</option>
+        <option>No</option>
+        <option>Not Sure</option>
+      </select>
+    </label>
+
+    <!-- This section only appears if the answer is "Yes" -->
+    <div id="bpFields" class="hidden">
+      <label>Last Systolic BP (top number, mmHg):
+        <input type="number" id="bp_sys" min="70" max="240" step="1" value="120">
+      </label>
+      <label>Last Diastolic BP (bottom number, mmHg):
+        <input type="number" id="bp_dia" min="40" max="140" step="1" value="80">
+      </label>
+    </div>
+
+    <!--Step 9:Have diabetic kidney disease?-->
+    <label>9)Has a doctor told you you have diabetic kidney disease (Nephropathy)?
+      <select id="nephropathy">
+        <option value="" disabled selected>Please select</option>
+        <option>Yes</option>
+        <option>No</option>
+        <option>Not Sure</option>
+      </select>
+    </label>
+
+    <!--Step 10:Have symptoms of diabetic nerve damage-->
+    <label>10)Do you have symptoms of diabetic nerve damage (Neuropathy), like numbness or tingling in your hands/feet?
+      <select id="neuropathy">
+        <option value="" disabled selected>Please select</option>
+        <option>Yes</option>
+        <option>No</option>
+        <option>Not Sure</option>
+      </select>
+    </label>
+
+    <!--Step 11:Have diagnosed with high chlosterol?-->
+    <label>11)Have you been diagnosed with high cholesterol as part of your diabetes care?
+      <select id="cholesterol">
+        <option value="" disabled selected>Please select</option>
+        <option>Yes</option>
+        <option>No</option>
+        <option>Not Sure</option>
+      </select>
+    </label>
+
+    <!--Navigation Button and save data to localStorage when move between page-->
+    <div class="row">
+      <button type="button" onclick="saveData(); location.href='step1.html'">Previous</button>
+      <button type="button" onclick="saveData(); location.href='step3.html'">Next</button>
+    </div>
+  </form>
+</div>
+
+<script>
+//Shows blood pressure fields when user selects “Yes”
+function toggleBP() {
+  const val=document.getElementById("hypertension").value;
+  document.getElementById("bpFields").classList.toggle("hidden", val!=="Yes"); // If user selects "Yes", show the BP fields; otherwise hide them
+}
+
+
+//Collects all responses and saves into localStorage
+function saveData() {
+  const data = {
+    hypertension: document.getElementById("hypertension").value,
+    bp_sys: document.getElementById("bp_sys").value,
+    bp_dia: document.getElementById("bp_dia").value,
+    nephropathy: document.getElementById("nephropathy").value,
+    neuropathy: document.getElementById("neuropathy").value,
+    cholesterol: document.getElementById("cholesterol").value
+  };
+  localStorage.setItem("step2", JSON.stringify(data)); // Store data locally for later review in Step 5
+}
+
+//Restores previously entered data when page is reloaded
+function loadData() {
+  const data = JSON.parse(localStorage.getItem("step2") || "{}");
+  if(!data) return;
+
+  // Restore all field values
+  document.getElementById("hypertension").value = data.hypertension || "";
+  toggleBP(); // Show or hide BP fields depending on selection
+  document.getElementById("bp_sys").value = data.bp_sys || 120;
+  document.getElementById("bp_dia").value = data.bp_dia || 80;
+  document.getElementById("nephropathy").value = data.nephropathy || "";
+  document.getElementById("neuropathy").value = data.neuropathy || "";
+  document.getElementById("cholesterol").value = data.cholesterol || "";
+}
+
+// Automatically load data when page opens
+loadData();
+</script>
+</body>
+</html>
