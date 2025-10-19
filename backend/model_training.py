@@ -176,104 +176,117 @@ class DRRiskModel:
         self.is_trained = True
     
     def preprocess_user_data(self, user_data):
-        """预处理用户数据（更新为用preprocessor）"""
-        try:
-            # 字段映射：前端字段到 CSV 列名
-            field_mapping = {
-                'age': 'age',
-                'duration': 'duration',
-                'hba1c': 'hba1c',
-                'fbg': 'fbg',
-                'diabetes_type': 'diabetes_type',
-                'Management_Insulin': 'Management_Insulin',
-                'Management_OralMed': 'Management_OralMed',
-                'Management_DietExercise': 'Management_DietExercise',
-                'blood_sugar_frequency': 'blood_sugar_frequency',
-                'hypertension': 'hypertension',
-                'systolic_bp': 'systolic_bp',
-                'diastolic_bp': 'diastolic_bp',
-                'nephropathy': 'nephropathy',
-                'neuropathy': 'neuropathy',
-                'cholesterol': 'cholesterol',
-                'smoking': 'smoking',
-                'Height_cm': 'Height_cm',
-                'Weight_kg': 'Weight_kg',
-                'BMI': 'BMI',
-                'eye_exam': 'last_eye_exam',
-                'adherence': 'medication_adherence',
-                'diagnosed_retinopathy': 'diagnosed_retinopathy',
-                'Vision_Blurriness': 'Vision_Blurriness',
-                'Vision_Floaters': 'Vision_Floaters',
-                'Vision_Fluctuating': 'Vision_Fluctuating',
-                'Vision_Sudden_Loss': 'Vision_Sudden_Loss'
-            }
-            
-            # 映射字段名
-            mapped_data = {field_mapping.get(k, k): v for k, v in user_data.items()}
-            
-            # 默认值
-            default_data = {
-                'age': 50,
-                'duration': 5,
-                'hba1c': 6.0,
-                'fbg': 120,
-                'diabetes_type': 'Not Sure',
-                'Management_Insulin': 0,
-                'Management_OralMed': 0,
-                'Management_DietExercise': 0,
-                'blood_sugar_frequency': 'Rarely/Never',
-                'hypertension': 0,
-                'systolic_bp': None,
-                'diastolic_bp': None,
-                'nephropathy': 0,
-                'neuropathy': 0,
-                'cholesterol': 0,
-                'smoking': 'Never smoked',
-                'Height_cm': 170,
-                'Weight_kg': 70,
-                'BMI': 24.2,
-                'last_eye_exam': 'More than 2 years ago',
-                'diagnosed_retinopathy': 0,
-                'Vision_Blurriness': 0,
-                'Vision_Floaters': 0,
-                'Vision_Fluctuating': 0,
-                'Vision_Sudden_Loss': 0,
-                'medication_adherence': 'I never miss a dose'
-            }
-            
-            # 验证和填充缺失字段
-            for key in default_data:
-                if key not in mapped_data:
-                    mapped_data[key] = default_data[key]
-            
-            # 转换数值字段
-            numeric_fields = ['age', 'duration', 'hba1c', 'fbg', 'systolic_bp', 'diastolic_bp', 'Height_cm', 'Weight_kg', 'BMI']
-            for key in numeric_fields:
-                if mapped_data[key] is not None:
-                    try:
-                        mapped_data[key] = float(mapped_data[key])
-                    except (ValueError, TypeError):
-                        print(f"Invalid numeric value for {key}: {mapped_data[key]}. Using default: {default_data[key]}")
-                        mapped_data[key] = default_data[key]
-            
-            # 转换二进制字段为 int
-            binary_fields = ['Management_Insulin', 'Management_OralMed', 'Management_DietExercise', 'hypertension', 'nephropathy', 'neuropathy', 'cholesterol', 'diagnosed_retinopathy', 'Vision_Blurriness', 'Vision_Floaters', 'Vision_Fluctuating', 'Vision_Sudden_Loss']
-            for key in binary_fields:
-                try:
-                    mapped_data[key] = int(mapped_data[key])
-                except (ValueError, TypeError):
-                    print(f"Invalid binary value for {key}: {mapped_data[key]}. Using default: {default_data[key]}")
-                    mapped_data[key] = default_data[key]
-            
-            # 将数据转换为 DataFrame
-            df_user = pd.DataFrame([mapped_data])
-            
-            # 应用预处理器
-            features = self.preprocessor.transform(df_user)
-            return features
-        except Exception as e:
-            print(f"Error in preprocessing: {e}")
-            return np.array([[50, 5, 6.0, 120.0, 0, 0, 0, 0, 25.0, 0, 5.0, 0.5]])  # 默认值
+    """
+    预处理用户数据 - 将前端格式转换为CSV训练数据格式
+    """
+    try:
+        print("\n" + "="*60)
+        print("🔄 PREPROCESSING USER DATA")
+        print("="*60)
+        print(f"📥 Received data keys: {list(user_data.keys())}")
+        
+        # 创建与CSV列名完全匹配的数据字典
+        processed_data = {}
+        
+        # ==================== 直接映射的字段 ====================
+        processed_data['age'] = float(user_data.get('age', 50))
+        processed_data['diabetes_type'] = user_data.get('diabetes_type', 'Type 2')
+        processed_data['duration'] = float(user_data.get('duration', 5))
+        processed_data['hba1c'] = float(user_data.get('hba1c', 7.0))
+        processed_data['fbg'] = float(user_data.get('fbg', 120))
+        
+        # Management (已经是 0/1 格式)
+        processed_data['Management_Insulin'] = int(user_data.get('Management_Insulin', 0))
+        processed_data['Management_OralMed'] = int(user_data.get('Management_OralMed', 0))
+        processed_data['Management_DietExercise'] = int(user_data.get('Management_DietExercise', 0))
+        
+        processed_data['blood_sugar_frequency'] = user_data.get('blood_sugar_frequency', 'Once a day')
+        
+        # Health conditions (已经是 0/1 格式)
+        processed_data['hypertension'] = int(user_data.get('hypertension', 0))
+        processed_data['systolic_bp'] = float(user_data.get('systolic_bp', 120))
+        processed_data['diastolic_bp'] = float(user_data.get('diastolic_bp', 80))
+        processed_data['nephropathy'] = int(user_data.get('nephropathy', 0))
+        processed_data['neuropathy'] = int(user_data.get('neuropathy', 0))
+        processed_data['cholesterol'] = int(user_data.get('cholesterol', 0))
+        
+        # Lifestyle
+        processed_data['smoking'] = user_data.get('smoking', 'Never smoked')
+        processed_data['Height_cm'] = float(user_data.get('Height_cm', 170))
+        processed_data['Weight_kg'] = float(user_data.get('Weight_kg', 70))
+        processed_data['BMI'] = float(user_data.get('BMI', 24.2))
+        
+        # Eye health
+        processed_data['last_eye_exam'] = user_data.get('last_eye_exam', 'More than 2 years ago')
+        processed_data['diagnosed_retinopathy'] = int(user_data.get('diagnosed_retinopathy', 0))
+        processed_data['Vision_Blurriness'] = int(user_data.get('Vision_Blurriness', 0))
+        processed_data['Vision_Floaters'] = int(user_data.get('Vision_Floaters', 0))
+        processed_data['Vision_Fluctuating'] = int(user_data.get('Vision_Fluctuating', 0))
+        processed_data['Vision_Sudden_Loss'] = int(user_data.get('Vision_Sudden_Loss', 0))
+        processed_data['medication_adherence'] = user_data.get('medication_adherence', 'I never miss a dose')
+        
+        print(f"✅ Processed data sample:")
+        print(f"   Age: {processed_data['age']}")
+        print(f"   HbA1c: {processed_data['hba1c']}")
+        print(f"   BMI: {processed_data['BMI']:.1f}")
+        print(f"   Management_Insulin: {processed_data['Management_Insulin']}")
+        
+        # 转换为 DataFrame
+        df_user = pd.DataFrame([processed_data])
+        
+        # 确保列顺序与训练时一致 (26列)
+        expected_columns = [
+            'age', 'diabetes_type', 'duration', 'hba1c', 'fbg',
+            'Management_Insulin', 'Management_OralMed', 'Management_DietExercise',
+            'blood_sugar_frequency', 'hypertension', 'systolic_bp', 'diastolic_bp',
+            'nephropathy', 'neuropathy', 'cholesterol', 'smoking',
+            'Height_cm', 'Weight_kg', 'BMI', 'last_eye_exam',
+            'diagnosed_retinopathy', 'Vision_Blurriness', 'Vision_Floaters',
+            'Vision_Fluctuating', 'Vision_Sudden_Loss', 'medication_adherence'
+        ]
+        
+        # 检查缺失列
+        missing_cols = [col for col in expected_columns if col not in df_user.columns]
+        if missing_cols:
+            print(f"⚠️ Missing columns: {missing_cols}")
+            for col in missing_cols:
+                df_user[col] = 0 if col.startswith('Vision_') or col.startswith('Management_') else 'Unknown'
+        
+        # 按正确顺序排列
+        df_user = df_user[expected_columns]
+        
+        print(f"✅ DataFrame shape: {df_user.shape}")
+        print(f"📋 Columns: {df_user.columns.tolist()}")
+        
+        # 应用预处理器 (StandardScaler + OneHotEncoder)
+        features = self.preprocessor.transform(df_user)
+        
+        print(f"✅ Final feature shape: {features.shape}")
+        print("="*60 + "\n")
+        
+        return features
+        
+    except Exception as e:
+        print(f"❌ Error in preprocessing: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # 返回安全的默认特征
+        print("⚠️ Using default fallback features")
+        default_df = pd.DataFrame([{
+            'age': 50, 'diabetes_type': 'Type 2', 'duration': 5,
+            'hba1c': 7.0, 'fbg': 120,
+            'Management_Insulin': 0, 'Management_OralMed': 1, 'Management_DietExercise': 0,
+            'blood_sugar_frequency': 'Once a day', 'hypertension': 0,
+            'systolic_bp': 120, 'diastolic_bp': 80,
+            'nephropathy': 0, 'neuropathy': 0, 'cholesterol': 0,
+            'smoking': 'Never smoked', 'Height_cm': 170, 'Weight_kg': 70, 'BMI': 24.2,
+            'last_eye_exam': '1-2 years ago', 'diagnosed_retinopathy': 0,
+            'Vision_Blurriness': 0, 'Vision_Floaters': 0,
+            'Vision_Fluctuating': 0, 'Vision_Sudden_Loss': 0,
+            'medication_adherence': 'I never miss a dose'
+        }])
+        return self.preprocessor.transform(default_df)
     
     def predict_risk(self, user_data):
         """预测风险（只用XGB × DNN ensemble）"""
