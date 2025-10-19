@@ -1,10 +1,13 @@
 # backend/model_training.py
 import pandas as pd
 import numpy as np
-import os
-from sklearn.metrics import accuracy_score, roc_auc_score, precision_score, recall_score, f1_score
+import json
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+import xgboost as xgb
 import joblib
-import tensorflow as tf
+import os
 
 # 常量定义
 RANDOM_STATE = 42
@@ -14,7 +17,7 @@ MODEL_DIR = os.path.join(BASE_DIR, 'models')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 def ensemble_average(prob1, prob2, weight1=0.5):
-    """Compute weighted average ensemble"""
+
     return weight1 * prob1 + (1 - weight1) * prob2
 
 class DRRiskModel:
@@ -83,7 +86,7 @@ Please ensure these files are committed to Git:
             raise FileNotFoundError(error_msg)
     
     def preprocess_user_data(self, user_data):
-        """预处理用户数据"""
+
         try:
             print("\n" + "="*60)
             print("🔄 PREPROCESSING USER DATA")
