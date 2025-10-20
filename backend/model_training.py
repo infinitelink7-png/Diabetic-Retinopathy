@@ -54,11 +54,9 @@ class DRRiskModel:
             try:
                 print("✅ Loading pre-trained models...")
 
-                # 加载 XGBoost 模型
                 self.models['xgboost'] = joblib.load(xgb_path)
                 print("   ✓ XGBoost loaded")
 
-                # 加载 DNN 模型（优先 h5）
                 if os.path.exists(dnn_path_h5):
                     self.models['dnn'] = tf.keras.models.load_model(dnn_path_h5, compile=False)
                     print("   ✓ DNN (.h5) loaded successfully")
@@ -66,7 +64,6 @@ class DRRiskModel:
                     self.models['dnn'] = tf.keras.models.load_model(dnn_path_keras, compile=False)
                     print("   ✓ DNN (.keras) loaded successfully")
 
-                # 加载预处理器
                 self.preprocessor = joblib.load(preprocessor_path)
                 print("   ✓ Preprocessor loaded")
 
@@ -138,9 +135,6 @@ Files in directory: {os.listdir(MODEL_DIR) if os.path.exists(MODEL_DIR) else 'Di
             }
 
             df_user = pd.DataFrame([processed_data])
-            expected_columns = list(processed_data.keys())
-            df_user = df_user[expected_columns]
-
             features = self.preprocessor.transform(df_user)
             print(f"✅ Final feature shape: {features.shape}")
             print("="*60 + "\n")
@@ -187,88 +181,91 @@ Files in directory: {os.listdir(MODEL_DIR) if os.path.exists(MODEL_DIR) else 'Di
                 'probability': 0.15
             }
 
-def explain_prediction(self, user_data):
-    try:
-        features = self.preprocess_user_data(user_data)[0]
-        explanations = []
+    # ===============================
+    # 可解释性输出（Explainable AI）
+    # ===============================
+    def explain_prediction(self, user_data):
+        try:
+            features = self.preprocess_user_data(user_data)[0]
+            explanations = []
 
-        def safe_get(idx, default=0):
-            return features[idx] if len(features) > idx else default
+            def safe_get(idx, default=0):
+                return features[idx] if len(features) > idx else default
 
-        age = safe_get(0)
-        duration = safe_get(1)
-        hba1c = safe_get(2)
-        fbg = safe_get(3)
-        hypertension = safe_get(4)
-        nephropathy = safe_get(5)
-        neuropathy = safe_get(6)
-        cholesterol = safe_get(7)
-        bmi = safe_get(8)
+            age = safe_get(0)
+            duration = safe_get(1)
+            hba1c = safe_get(2)
+            fbg = safe_get(3)
+            hypertension = safe_get(4)
+            nephropathy = safe_get(5)
+            neuropathy = safe_get(6)
+            cholesterol = safe_get(7)
+            bmi = safe_get(8)
 
-        # === 以下保持你原本逻辑 ===
-        if age > 60:
-            explanations.append({'factor': 'Age', 'impact': 'High',
-                                 'explanation': f'Age {int(age)} increases retinopathy risk'})
-        elif age > 40:
-            explanations.append({'factor': 'Age', 'impact': 'Medium',
-                                 'explanation': f'Age {int(age)} moderately affects risk'})
+            if age > 60:
+                explanations.append({'factor': 'Age', 'impact': 'High',
+                                     'explanation': f'Age {int(age)} increases retinopathy risk'})
+            elif age > 40:
+                explanations.append({'factor': 'Age', 'impact': 'Medium',
+                                     'explanation': f'Age {int(age)} moderately affects risk'})
 
-        if duration > 10:
-            explanations.append({'factor': 'Diabetes Duration', 'impact': 'High',
-                                 'explanation': f'{int(duration)} years with diabetes significantly increases risk'})
-        elif duration > 5:
-            explanations.append({'factor': 'Diabetes Duration', 'impact': 'Medium',
-                                 'explanation': f'{int(duration)} years with diabetes moderately increases risk'})
+            if duration > 10:
+                explanations.append({'factor': 'Diabetes Duration', 'impact': 'High',
+                                     'explanation': f'{int(duration)} years with diabetes significantly increases risk'})
+            elif duration > 5:
+                explanations.append({'factor': 'Diabetes Duration', 'impact': 'Medium',
+                                     'explanation': f'{int(duration)} years with diabetes moderately increases risk'})
 
-        if hba1c > 8.0:
-            explanations.append({'factor': 'Blood Sugar Control (HbA1c)', 'impact': 'High',
-                                 'explanation': f'HbA1c {hba1c:.1f}% indicates poor glucose control'})
-        elif hba1c > 7.0:
-            explanations.append({'factor': 'Blood Sugar Control (HbA1c)', 'impact': 'Medium',
-                                 'explanation': f'HbA1c {hba1c:.1f}% needs improvement'})
+            if hba1c > 8.0:
+                explanations.append({'factor': 'Blood Sugar Control (HbA1c)', 'impact': 'High',
+                                     'explanation': f'HbA1c {hba1c:.1f}% indicates poor glucose control'})
+            elif hba1c > 7.0:
+                explanations.append({'factor': 'Blood Sugar Control (HbA1c)', 'impact': 'Medium',
+                                     'explanation': f'HbA1c {hba1c:.1f}% needs improvement'})
 
-        if fbg > 180:
-            explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'High',
-                                 'explanation': f'FBG {fbg:.0f} mg/dL indicates poor diabetes control'})
-        elif fbg > 130:
-            explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium',
-                                 'explanation': f'FBG {fbg:.0f} mg/dL needs improvement'})
-        elif fbg < 70:
-            explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium',
-                                 'explanation': f'FBG {fbg:.0f} mg/dL may be too low'})
+            if fbg > 180:
+                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'High',
+                                     'explanation': f'FBG {fbg:.0f} mg/dL indicates poor diabetes control'})
+            elif fbg > 130:
+                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium',
+                                     'explanation': f'FBG {fbg:.0f} mg/dL needs improvement'})
+            elif fbg < 70:
+                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium',
+                                     'explanation': f'FBG {fbg:.0f} mg/dL may be too low'})
 
-        if hypertension == 1.0:
-            explanations.append({'factor': 'High Blood Pressure', 'impact': 'Medium',
-                                 'explanation': 'Hypertension can accelerate retinopathy development'})
+            if hypertension == 1.0:
+                explanations.append({'factor': 'High Blood Pressure', 'impact': 'Medium',
+                                     'explanation': 'Hypertension can accelerate retinopathy development'})
 
-        if nephropathy == 1.0:
-            explanations.append({'factor': 'Kidney Disease', 'impact': 'High',
-                                 'explanation': 'Diabetic kidney disease is closely linked to retinopathy'})
+            if nephropathy == 1.0:
+                explanations.append({'factor': 'Kidney Disease', 'impact': 'High',
+                                     'explanation': 'Diabetic kidney disease is closely linked to retinopathy'})
 
-        if neuropathy == 1.0:
-            explanations.append({'factor': 'Nerve Damage', 'impact': 'Medium',
-                                 'explanation': 'Diabetic neuropathy may indicate systemic complications'})
+            if neuropathy == 1.0:
+                explanations.append({'factor': 'Nerve Damage', 'impact': 'Medium',
+                                     'explanation': 'Diabetic neuropathy may indicate systemic complications'})
 
-        if cholesterol == 1.0:
-            explanations.append({'factor': 'High Cholesterol', 'impact': 'Low',
-                                 'explanation': 'High cholesterol can contribute to vascular complications'})
+            if cholesterol == 1.0:
+                explanations.append({'factor': 'High Cholesterol', 'impact': 'Low',
+                                     'explanation': 'High cholesterol can contribute to vascular complications'})
 
-        if bmi > 30:
-            explanations.append({'factor': 'Body Mass Index', 'impact': 'Medium',
-                                 'explanation': f'BMI {bmi:.1f} indicates obesity, which can worsen diabetes control'})
-        elif bmi > 25:
-            explanations.append({'factor': 'Body Mass Index', 'impact': 'Low',
-                                 'explanation': f'BMI {bmi:.1f} indicates overweight status'})
+            if bmi > 30:
+                explanations.append({'factor': 'Body Mass Index', 'impact': 'Medium',
+                                     'explanation': f'BMI {bmi:.1f} indicates obesity, which can worsen diabetes control'})
+            elif bmi > 25:
+                explanations.append({'factor': 'Body Mass Index', 'impact': 'Low',
+                                     'explanation': f'BMI {bmi:.1f} indicates overweight status'})
 
-        return explanations[:5]
+            return explanations[:5]
 
-    except Exception as e:
-        print(f"❌ Explanation error: {e}")
-        return [{
-            'factor': 'Basic Assessment',
-            'impact': 'Low',
-            'explanation': 'Standard diabetes management recommended'
-        }]
+        except Exception as e:
+            print(f"❌ Explanation error: {e}")
+            return [{
+                'factor': 'Basic Assessment',
+                'impact': 'Low',
+                'explanation': 'Standard diabetes management recommended'
+            }]
+
 
 # ===============================
 # 本地测试
