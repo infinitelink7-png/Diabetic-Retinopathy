@@ -264,30 +264,33 @@ function gatherAllData() {
     `;
     
     // Add recommendations
-    recommendations.forEach(rec => {
-      let typeColor = '#4f46e5';
-      if (rec.type === 'urgent') typeColor = '#dc2626';
-      if (rec.type === 'important') typeColor = '#ea580c';
-      if (rec.type === 'routine') typeColor = '#16a34a';
-      
-      // 转义引号避免 JavaScript 错误
-      const safeAction = rec.action.replace(/'/g, "\\'");
-      
-      resultHTML += `
-        <div class="recommendation-item" style="border-left-color: ${typeColor};">
-          <div style="display: flex; justify-content: space-between; align-items: start;">
-            <div style="flex: 1;">
-              <strong style="color: ${typeColor};">${rec.title}</strong>
-              <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
-            </div>
-            <button onclick="alert('${safeAction} action would be triggered here.')" 
-                    style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-              ${rec.action}
-            </button>
-          </div>
+    // Add recommendations
+recommendations.forEach(rec => {
+  let typeColor = '#4f46e5';
+  if (rec.type === 'urgent') typeColor = '#dc2626';
+  if (rec.type === 'important') typeColor = '#ea580c';
+  if (rec.type === 'routine') typeColor = '#16a34a';
+  
+  // ✅ 防止 rec.action 为 undefined
+  const safeAction = rec.action ? rec.action.replace(/'/g, "\\'") : '';
+
+  resultHTML += `
+    <div class="recommendation-item" style="border-left-color: ${typeColor};">
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div style="flex: 1;">
+          <strong style="color: ${typeColor};">${rec.title}</strong>
+          <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
         </div>
-      `;
-    });
+        ${safeAction ? `
+        <button onclick="alert('${safeAction} action would be triggered here.')" 
+                style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+          ${rec.action}
+        </button>` : ''}
+      </div>
+    </div>
+  `;
+});
+
     
     resultHTML += `
         </div>
