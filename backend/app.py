@@ -319,21 +319,18 @@ def generate_recommendations(prediction, explanation):
             'type': 'urgent',
             'title': 'Consult Doctor Immediately',
             'message': 'We strongly recommend scheduling an appointment with an ophthalmologist for a comprehensive dilated eye examination within 1-3 months.',
-            'action': 'Schedule Eye Doctor Appointment'
         })
     elif risk_level == 'Moderate Risk' or risk_score >= 30:
         recommendations.append({
             'type': 'important', 
             'title': 'Regular Monitoring',
             'message': 'We recommend an eye examination within 6 months and close monitoring of blood sugar and blood pressure.',
-            'action': 'Schedule Eye Examination'
         })
     else:
         recommendations.append({
             'type': 'routine',
             'title': 'Continue Screening',
             'message': 'Please maintain good diabetes management and annual eye screening.',
-            'action': 'Continue Regular Screening'
         })
     
     # Specific recommendations based on risk factors
@@ -345,28 +342,24 @@ def generate_recommendations(prediction, explanation):
                 'type': 'management',
                 'title': 'Optimize Blood Sugar Control',
                 'message': 'Good blood sugar control is key to preventing diabetic retinopathy.',
-                'action': 'Consult Endocrinologist'
             })
         elif 'Blood Pressure' in factor_name:
             recommendations.append({
                 'type': 'management',
                 'title': 'Control Blood Pressure',
                 'message': 'High blood pressure can accelerate the development of diabetic retinopathy.',
-                'action': 'Monitor and Control Blood Pressure'
             })
         elif 'Kidney' in factor_name or 'Nephropathy' in factor_name:
             recommendations.append({
                 'type': 'specialist',
                 'title': 'Kidney Health',
                 'message': 'Diabetic kidney disease is closely related to retinopathy. We recommend kidney function tests.',
-                'action': 'Consult Nephrologist'
             })
         elif 'Diabetes Duration' in factor_name:
             recommendations.append({
                 'type': 'monitoring',
                 'title': 'Enhanced Monitoring',
                 'message': 'Longer diabetes duration requires more frequent eye examinations.',
-                'action': 'Increase Eye Check Frequency'
             })
     
     return recommendations
