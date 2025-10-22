@@ -48,11 +48,11 @@
                         <a href="step1.html" class="btn">Start Your First Assessment</a>
                     </div>
                 `;
+                document.getElementById('session-info').innerHTML = '<strong>No Session</strong><br>Start a new assessment to create your session.';
                 return;
             }
 
             try {
-                // 修复：使用相对路径而不是localhost
                 const response = await fetch(`/api/assessments/${sessionId}`);
                 const data = await response.json();
 
@@ -85,26 +85,42 @@
                 return;
             }
 
-            container.innerHTML = assessments.map(assessment => `
-                <div class="assessment-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <div>
-                            <span class="risk-${assessment.risk_level.toLowerCase().replace(' ', '-')}">
-                                ${assessment.risk_level} (${assessment.risk_score}/100)
-                            </span>
-                            <div class="date">${new Date(assessment.created_at).toLocaleDateString()} at ${new Date(assessment.created_at).toLocaleTimeString()}</div>
-                        </div>
-                        <button onclick="viewAssessmentDetails('${assessment.id}')" class="btn">View Details</button>
-                    </div>
+            container.innerHTML = assessments.map(assessment => {
+                // 🔧 修复：解析 JSON 字符串
+                let explanationText = 'No factors available';
+                try {
+                    const explanationArray = typeof assessment.explanation === 'string' 
+                        ? JSON.parse(assessment.explanation) 
+                        : assessment.explanation;
                     
-                    <div style="font-size: 14px; color: #666;">
-                        <strong>Key Factors:</strong>
-                        ${assessment.explanation && assessment.explanation.slice(0, 2).map(factor => 
-                            `${factor.explanation || factor.factor}`  // 修复：使用 explanation 或 factor
-                        ).join(', ')}
+                    if (explanationArray && Array.isArray(explanationArray) && explanationArray.length > 0) {
+                        explanationText = explanationArray.slice(0, 2).map(factor => 
+                            factor.explanation || factor.factor || 'Unknown factor'
+                        ).join(', ');
+                    }
+                } catch (e) {
+                    console.error('Error parsing explanation:', e);
+                    explanationText = 'Unable to parse factors';
+                }
+
+                return `
+                    <div class="assessment-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <span class="risk-${assessment.risk_level.toLowerCase().replace(' ', '-')}">
+                                    ${assessment.risk_level} (${assessment.risk_score}/100)
+                                </span>
+                                <div class="date">${new Date(assessment.created_at).toLocaleDateString()} at ${new Date(assessment.created_at).toLocaleTimeString()}</div>
+                            </div>
+                            <button onclick="viewAssessmentDetails('${assessment.id}')" class="btn">View Details</button>
+                        </div>
+                        
+                        <div style="font-size: 14px; color: #666;">
+                            <strong>Key Factors:</strong> ${explanationText}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function updateSessionInfo() {
@@ -122,134 +138,158 @@
 
         function viewAssessmentDetails(assessmentId) {
             const details = assessments.find(a => a.id === assessmentId);
-            if (details) {
-                const resultWindow = window.open('', '_blank', 'width=800,height=600');
-                resultWindow.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>Assessment Details - ${details.risk_level}</title>
-                        <style>
-                            body { 
-                                font-family: Arial, sans-serif; 
-                                padding: 30px; 
-                                background: #f8fafc;
-                                line-height: 1.6;
-                            }
-                            .container { 
-                                max-width: 700px; 
-                                margin: 0 auto; 
-                                background: white;
-                                padding: 30px;
-                                border-radius: 12px;
-                                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                            }
-                            .header { 
-                                background: #1e40af; 
-                                color: white; 
-                                padding: 20px; 
-                                border-radius: 8px;
-                                margin-bottom: 25px;
-                            }
-                            .risk-high { color: #dc2626; font-weight: bold; }
-                            .risk-moderate { color: #ea580c; font-weight: bold; }
-                            .risk-low { color: #16a34a; font-weight: bold; }
-                            .section { 
-                                margin: 25px 0; 
-                                padding: 20px;
-                                background: #f8fafc;
-                                border-radius: 8px;
-                            }
-                            .factor-item { 
-                                background: white; 
-                                padding: 12px; 
-                                margin: 8px 0; 
-                                border-radius: 6px;
-                                border-left: 4px solid #3b82f6;
-                            }
-                            .recommendation-item {
-                                background: white;
-                                padding: 15px;
-                                margin: 10px 0;
-                                border-radius: 6px;
-                                border-left: 4px solid #10b981;
-                            }
-                            button { 
-                                padding: 12px 24px; 
-                                background: #3b82f6; 
-                                color: white; 
-                                border: none; 
-                                border-radius: 6px; 
-                                cursor: pointer;
-                                margin-right: 10px;
-                                font-size: 14px;
-                            }
-                            button:hover { background: #2563eb; }
-                            .button-group { text-align: center; margin-top: 30px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="container">
-                            <div class="header">
-                                <h1 style="margin: 0; font-size: 24px;">Diabetic Retinopathy Risk Assessment</h1>
-                                <div style="margin-top: 10px; font-size: 14px; opacity: 0.9;">
-                                    ${new Date(details.created_at).toLocaleString()}
-                                </div>
-                            </div>
-                            
-                            <div class="section">
-                                <h2 style="margin-top: 0;">Risk Assessment Results</h2>
-                                <div style="text-align: center; padding: 20px; background: white; border-radius: 8px;">
-                                    <div class="risk-${details.risk_level.toLowerCase().replace(' ', '-')}" style="font-size: 28px; margin-bottom: 10px;">
-                                        ${details.risk_level}
-                                    </div>
-                                    <div style="font-size: 20px; color: #374151;">
-                                        Risk Score: <strong>${details.risk_score}/100</strong>
-                                    </div>
-                                    <div style="color: #6b7280; margin-top: 5px;">
-                                        Probability: ${(details.probability * 100).toFixed(1)}%
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="section">
-                                <h3>Key Factors</h3>
-                                ${details.explanation && details.explanation.map(factor => 
-                                    `<div class="factor-item">
-                                        <strong>${factor.factor}</strong>
-                                        <span style="color: ${
-                                            factor.impact === 'High' ? '#dc2626' : 
-                                            factor.impact === 'Medium' ? '#ea580c' : '#16a34a'
-                                        }; margin-left: 10px;">(${factor.impact} impact)</span>
-                                        <div style="color: #6b7280; margin-top: 5px;">${factor.explanation}</div>
-                                    </div>`
-                                ).join('') || '<p>No factor analysis available.</p>'}
-                            </div>
-                            
-                            <div class="section">
-                                <h3>Recommendations</h3>
-                                ${details.recommendations && details.recommendations.map(rec => 
-                                    `<div class="recommendation-item">
-                                        <strong style="color: #059669;">${rec.title}</strong>
-                                        <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
-                                        ${rec.action ? `<div style="margin-top: 8px; font-size: 14px; color: #6b7280;"><strong>Action:</strong> ${rec.action}</div>` : ''}
-                                    </div>`
-                                ).join('') || '<p>No recommendations available.</p>'}
-                            </div>
-                            
-                            <div class="button-group">
-                                <button onclick="window.print()">🖨️ Print Results</button>
-                                <button onclick="window.close()">Close Window</button>
+            if (!details) {
+                alert('Assessment details not found');
+                return;
+            }
+
+            // 🔧 修复：解析 JSON 字符串
+            let explanationArray = [];
+            let recommendationsArray = [];
+
+            try {
+                explanationArray = typeof details.explanation === 'string' 
+                    ? JSON.parse(details.explanation) 
+                    : details.explanation || [];
+            } catch (e) {
+                console.error('Error parsing explanation:', e);
+                explanationArray = [];
+            }
+
+            try {
+                recommendationsArray = typeof details.recommendations === 'string' 
+                    ? JSON.parse(details.recommendations) 
+                    : details.recommendations || [];
+            } catch (e) {
+                console.error('Error parsing recommendations:', e);
+                recommendationsArray = [];
+            }
+
+            const resultWindow = window.open('', '_blank', 'width=800,height=600');
+            resultWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Assessment Details - ${details.risk_level}</title>
+                    <style>
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            padding: 30px; 
+                            background: #f8fafc;
+                            line-height: 1.6;
+                        }
+                        .container { 
+                            max-width: 700px; 
+                            margin: 0 auto; 
+                            background: white;
+                            padding: 30px;
+                            border-radius: 12px;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        }
+                        .header { 
+                            background: #1e40af; 
+                            color: white; 
+                            padding: 20px; 
+                            border-radius: 8px;
+                            margin-bottom: 25px;
+                        }
+                        .risk-high { color: #dc2626; font-weight: bold; }
+                        .risk-moderate { color: #ea580c; font-weight: bold; }
+                        .risk-low { color: #16a34a; font-weight: bold; }
+                        .section { 
+                            margin: 25px 0; 
+                            padding: 20px;
+                            background: #f8fafc;
+                            border-radius: 8px;
+                        }
+                        .factor-item { 
+                            background: white; 
+                            padding: 12px; 
+                            margin: 8px 0; 
+                            border-radius: 6px;
+                            border-left: 4px solid #3b82f6;
+                        }
+                        .recommendation-item {
+                            background: white;
+                            padding: 15px;
+                            margin: 10px 0;
+                            border-radius: 6px;
+                            border-left: 4px solid #10b981;
+                        }
+                        button { 
+                            padding: 12px 24px; 
+                            background: #3b82f6; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 6px; 
+                            cursor: pointer;
+                            margin-right: 10px;
+                            font-size: 14px;
+                        }
+                        button:hover { background: #2563eb; }
+                        .button-group { text-align: center; margin-top: 30px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1 style="margin: 0; font-size: 24px;">Diabetic Retinopathy Risk Assessment</h1>
+                            <div style="margin-top: 10px; font-size: 14px; opacity: 0.9;">
+                                ${new Date(details.created_at).toLocaleString()}
                             </div>
                         </div>
-                    </body>
-                    </html>
-                `);
-                resultWindow.document.close();
-            }
+                        
+                        <div class="section">
+                            <h2 style="margin-top: 0;">Risk Assessment Results</h2>
+                            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px;">
+                                <div class="risk-${details.risk_level.toLowerCase().replace(' ', '-')}" style="font-size: 28px; margin-bottom: 10px;">
+                                    ${details.risk_level}
+                                </div>
+                                <div style="font-size: 20px; color: #374151;">
+                                    Risk Score: <strong>${details.risk_score}/100</strong>
+                                </div>
+                                <div style="color: #6b7280; margin-top: 5px;">
+                                    Probability: ${(details.probability * 100).toFixed(1)}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Key Factors</h3>
+                            ${explanationArray.length > 0 ? explanationArray.map(factor => 
+                                `<div class="factor-item">
+                                    <strong>${factor.factor || 'Unknown Factor'}</strong>
+                                    <span style="color: ${
+                                        factor.impact === 'High' ? '#dc2626' : 
+                                        factor.impact === 'Medium' ? '#ea580c' : '#16a34a'
+                                    }; margin-left: 10px;">(${factor.impact || 'Unknown'} impact)</span>
+                                    <div style="color: #6b7280; margin-top: 5px;">${factor.explanation || 'No explanation available'}</div>
+                                </div>`
+                            ).join('') : '<p>No factor analysis available.</p>'}
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Recommendations</h3>
+                            ${recommendationsArray.length > 0 ? recommendationsArray.map(rec => 
+                                `<div class="recommendation-item">
+                                    <strong style="color: #059669;">${rec.title || 'Recommendation'}</strong>
+                                    <div style="margin-top: 8px; color: #374151;">${rec.message || 'No message available'}</div>
+                                    ${rec.action ? `<div style="margin-top: 8px; font-size: 14px; color: #6b7280;"><strong>Action:</strong> ${rec.action}</div>` : ''}
+                                </div>`
+                            ).join('') : '<p>No recommendations available.</p>'}
+                        </div>
+                        
+                        <div class="button-group">
+                            <button onclick="window.print()">🖨️ Print Results</button>
+                            <button onclick="window.close()">Close Window</button>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+            resultWindow.document.close();
         }
 
-        // 页面加载时获取评估历史
         window.addEventListener('DOMContentLoaded', loadAssessments);
     </script>
 </body>
