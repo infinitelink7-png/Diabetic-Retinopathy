@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>糖尿病视网膜病变风险评估结果</title>
+  <style>
+    /* 与 step5.html 相同的 CSS 样式，确保视觉一致性 */
+    body { font-family: Arial, sans-serif; background: #f6f8fb; padding: 20px; }
+    .card { background: #fff; max-width: 900px; margin: auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h1 { font-size: 22px; margin-bottom: 10px; }
+    h3 { font-size: 18px; }
+    .result-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .risk-high { color: #dc2626; font-weight: bold; }
+    .risk-moderate { color: #ea580c; font-weight: bold; }
+    .risk-low { color: #16a34a; font-weight: bold; }
+    .recommendation-item {
+      background: white;
+      border-left: 4px solid #4f46e5;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 4px;
+    }
+    .factor-item {
+      background: #f8fafc;
+      padding: 8px 12px;
+      margin: 5px 0;
+      border-radius: 4px;
+      border-left: 3px solid #94a3b8;
+    }
+    .error-message {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 15px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover { background: #4338ca; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Diabetic retinopathy risk assessment results</h1>
+  <!-- 结果显示区域 -->
+  <div id="result"></div>
+</div>
+
+<script>
+  // 从 localStorage 获取分析结果
+  function loadResults() {
+    const resultData = JSON.parse(localStorage.getItem("assessment_result") || "{}");
+
+    // 检查是否有结果数据
+    if (!resultData || !resultData.success) {
+      document.getElementById("result").innerHTML = `
+        <div class="error-message">
+          <strong>Error：</strong> Unable to load assessment results. Please return to the previous step and resubmit.
+          <div style="margin-top: 10px;">
+            <button onclick="location.href='step5.html'">Return previous</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // 提取结果数据
+    const result = resultData.prediction;
+    const explanation = resultData.explanation;
+    const recommendations = resultData.recommendations;
+
+    // 构建结果 HTML，与 step5.html 的 displayResults 一致
+    let resultHTML = `
+      <div class="result-box">
+        <h3 style="text-align: center; margin-bottom: 20px;">Evaluation results</h3>
+        
+        <div style="text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <div class="risk-${result.risk_level.toLowerCase().replace(' ', '-')}" style="font-size: 28px; margin-bottom: 10px;">
+            ${result.risk_level}
+          </div>
+          <div style="font-size: 20px; margin: 10px 0; color: #374151;">
+            风险分数: <strong>${result.risk_score}/100</strong>
+          </div>
+          <div style="color: #6b7280; font-size: 14px;">
+            概率: ${(result.probability * 100).toFixed(1)}%
+          </div>
+        </div>
+        
+        <div style="margin: 25px 0;">
+          <h4 style="color: #374151; margin-bottom: 15px;">📊 Key Factors Influencing Your Risk：</h4>
+          <div>
+    `;
+
+    // 添加关键因素
+    explanation.forEach(factor => {
+      let impactColor = '#6b7280';
+      if (factor.impact === 'High') impactColor = '#dc2626';
+      if (factor.impact === 'Medium') impactColor = '#ea580c';
+      if (factor.impact === 'Low') impactColor = '#16a34a';
+
+      resultHTML += `
+        <div class="factor-item">
+          <strong>${factor.factor}</strong>
+          <span style="color: ${impactColor}; font-weight: bold; margin-left: 10px;">(${factor.impact} impact)</span>
+          <div style="color: #6b7280; margin-top: 5px; font-size: 13px;">${factor.explanation}</div>
+        </div>
+      `;
+    });
+
+    resultHTML += `
+          </div>
+        </div>
+        
+        <div style="margin: 25px 0;">
+          <h4 style="color: #374151; margin-bottom: 15px;">💡 个性化推荐：</h4>
+    `;
+
+    // 添加推荐项
+    recommendations.forEach(rec => {
+      let typeColor = '#4f46e5';
+      if (rec.type === 'urgent') typeColor = '#dc2626';
+      if (rec.type === 'important') typeColor = '#ea580c';
+      if (rec.type === 'routine') typeColor = '#16a34a';
+
+      const safeAction = rec.action ? rec.action.replace(/'/g, "\\'") : '';
+
+      resultHTML += `
+        <div class="recommendation-item" style="border-left-color: ${typeColor};">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+              <strong style="color: ${typeColor};">${rec.title}</strong>
+              <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
+            </div>
+            ${safeAction ? `
+            <button onclick="alert('${safeAction} The action will be triggered here.')" 
+                    style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+              ${rec.action}
+            </button>` : ''}
+          </div>
+        </div>
+      `;
+    });
+
+    resultHTML += `
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+          <a href="history.html" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            📋 View Your Assessment History
+          </a>
+          <button onclick="window.print()" style="background: #6b7280; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">
+            🖨️ Print Results
+          </button>
+          <button onclick="location.href='step1.html'" style="background: #374151; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">
+            🔄 Reassessment
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("result").innerHTML = resultHTML;
+  }
+
+  // 页面加载时调用 loadResults
+  window.onload = loadResults;
+</script>
+</body>
+</html>

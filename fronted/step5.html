@@ -89,76 +89,74 @@
 
 <script>
   // Retrieve all previous step data
-  // 替换 step5.html 中的 gatherAllData() 函数
+  function gatherAllData() {
+    const step1 = JSON.parse(localStorage.getItem("step1") || "{}");
+    const step2 = JSON.parse(localStorage.getItem("step2") || "{}");
+    const step3 = JSON.parse(localStorage.getItem("step3") || "{}");
+    const step4 = JSON.parse(localStorage.getItem("step4") || "{}");
 
-function gatherAllData() {
-  const step1 = JSON.parse(localStorage.getItem("step1") || "{}");
-  const step2 = JSON.parse(localStorage.getItem("step2") || "{}");
-  const step3 = JSON.parse(localStorage.getItem("step3") || "{}");
-  const step4 = JSON.parse(localStorage.getItem("step4") || "{}");
+    const backendData = {};
 
-  const backendData = {};
-
-  // Step 1
-  backendData.age = parseInt(step1.age) || 50;
-  backendData.diabetes_type = step1.diabetes_type || 'Type 2';
-  backendData.duration = parseFloat(step1.duration) || 5;
-  backendData.hba1c = parseFloat(step1.hba1c) || 7.0;
-  backendData.fbg = parseFloat(step1.fbg) || 120;
-  
-  backendData.Management_Insulin = step1.t_insulin ? 1 : 0;
-  backendData.Management_OralMed = step1.t_oral ? 1 : 0;
-  backendData.Management_DietExercise = step1.t_diet ? 1 : 0;
-  backendData.blood_sugar_frequency = step1.sugar_check || 'Once a day';
-
-  // Step 2
-  backendData.hypertension = (step2.hypertension === 'Yes') ? 1 : 0;
-  
-  if (step2.hypertension === 'Yes') {
-    backendData.systolic_bp = parseFloat(step2.bp_sys) || 140;
-    backendData.diastolic_bp = parseFloat(step2.bp_dia) || 90;
-  } else {
-    backendData.systolic_bp = 120;
-    backendData.diastolic_bp = 80;
-  }
-  
-  backendData.nephropathy = (step2.nephropathy === 'Yes') ? 1 : 0;
-  backendData.neuropathy = (step2.neuropathy === 'Yes') ? 1 : 0;
-  backendData.cholesterol = (step2.cholesterol === 'Yes') ? 1 : 0;
-
-  // Step 3
-  backendData.smoking = step3.smoking || 'Never smoked';
-  
-  if (step3.unit === 'imperial') {
-    const heightFt = parseFloat(step3.height_ft) || 5;
-    const heightIn = parseFloat(step3.height_in) || 7;
-    backendData.Height_cm = (heightFt * 12 + heightIn) * 2.54;
+    // Step 1
+    backendData.age = parseInt(step1.age) || 50;
+    backendData.diabetes_type = step1.diabetes_type || 'Type 2';
+    backendData.duration = parseFloat(step1.duration) || 5;
+    backendData.hba1c = parseFloat(step1.hba1c) || 7.0;
+    backendData.fbg = parseFloat(step1.fbg) || 120;
     
-    const weightLbs = parseFloat(step3.weight_lbs) || 150;
-    backendData.Weight_kg = weightLbs * 0.453592;
-  } else {
-    backendData.Height_cm = parseFloat(step3.height_cm) || 170;
-    backendData.Weight_kg = parseFloat(step3.weight_kg) || 70;
+    backendData.Management_Insulin = step1.t_insulin ? 1 : 0;
+    backendData.Management_OralMed = step1.t_oral ? 1 : 0;
+    backendData.Management_DietExercise = step1.t_diet ? 1 : 0;
+    backendData.blood_sugar_frequency = step1.sugar_check || 'Once a day';
+
+    // Step 2
+    backendData.hypertension = (step2.hypertension === 'Yes') ? 1 : 0;
+    
+    if (step2.hypertension === 'Yes') {
+      backendData.systolic_bp = parseFloat(step2.bp_sys) || 140;
+      backendData.diastolic_bp = parseFloat(step2.bp_dia) || 90;
+    } else {
+      backendData.systolic_bp = 120;
+      backendData.diastolic_bp = 80;
+    }
+    
+    backendData.nephropathy = (step2.nephropathy === 'Yes') ? 1 : 0;
+    backendData.neuropathy = (step2.neuropathy === 'Yes') ? 1 : 0;
+    backendData.cholesterol = (step2.cholesterol === 'Yes') ? 1 : 0;
+
+    // Step 3
+    backendData.smoking = step3.smoking || 'Never smoked';
+    
+    if (step3.unit === 'imperial') {
+      const heightFt = parseFloat(step3.height_ft) || 5;
+      const heightIn = parseFloat(step3.height_in) || 7;
+      backendData.Height_cm = (heightFt * 12 + heightIn) * 2.54;
+      
+      const weightLbs = parseFloat(step3.weight_lbs) || 150;
+      backendData.Weight_kg = weightLbs * 0.453592;
+    } else {
+      backendData.Height_cm = parseFloat(step3.height_cm) || 170;
+      backendData.Weight_kg = parseFloat(step3.weight_kg) || 70;
+    }
+    
+    backendData.BMI = backendData.Weight_kg / ((backendData.Height_cm / 100) ** 2);
+
+    // Step 4
+    backendData.last_eye_exam = step4.eye_exam || 'More than 2 years ago';
+    backendData.diagnosed_retinopathy = (step4.dr_diag === 'Yes') ? 1 : 0;
+    
+    const visionProblems = step4.vision_problems || [];
+    backendData.Vision_Blurriness = visionProblems.includes('Blurriness') ? 1 : 0;
+    backendData.Vision_Floaters = visionProblems.includes('Floaters (specks or strings)') ? 1 : 0;
+    backendData.Vision_Fluctuating = visionProblems.includes('Fluctuating vision') ? 1 : 0;
+    backendData.Vision_Sudden_Loss = visionProblems.includes('Sudden vision loss') ? 1 : 0;
+    
+    backendData.medication_adherence = step4.adherence || 'I never miss a dose';
+
+    console.log("📤 Data being sent to backend:", backendData);
+    
+    return backendData;
   }
-  
-  backendData.BMI = backendData.Weight_kg / ((backendData.Height_cm / 100) ** 2);
-
-  // Step 4
-  backendData.last_eye_exam = step4.eye_exam || 'More than 2 years ago';
-  backendData.diagnosed_retinopathy = (step4.dr_diag === 'Yes') ? 1 : 0;
-  
-  const visionProblems = step4.vision_problems || [];
-  backendData.Vision_Blurriness = visionProblems.includes('Blurriness') ? 1 : 0;
-  backendData.Vision_Floaters = visionProblems.includes('Floaters (specks or strings)') ? 1 : 0;
-  backendData.Vision_Fluctuating = visionProblems.includes('Fluctuating vision') ? 1 : 0;
-  backendData.Vision_Sudden_Loss = visionProblems.includes('Sudden vision loss') ? 1 : 0;
-  
-  backendData.medication_adherence = step4.adherence || 'I never miss a dose';
-
-  console.log("📤 Data being sent to backend:", backendData);
-  
-  return backendData;
-}
 
   // Fill the review box with all user data
   function fillReview() {
@@ -212,7 +210,7 @@ function gatherAllData() {
     document.getElementById("reviewBox").innerHTML = txt;
   }
 
-  // Display prediction results
+  // Display prediction results (retained for reference, but not used due to redirect)
   function displayResults(data) {
     const result = data.prediction;
     const explanation = data.explanation;
@@ -239,7 +237,6 @@ function gatherAllData() {
           <div>
     `;
     
-    // Add explanation factors
     explanation.forEach(factor => {
       let impactColor = '#6b7280';
       if (factor.impact === 'High') impactColor = '#dc2626';
@@ -263,34 +260,30 @@ function gatherAllData() {
           <h4 style="color: #374151; margin-bottom: 15px;">💡 Personalized Recommendations:</h4>
     `;
     
-    // Add recommendations
-    // Add recommendations
-recommendations.forEach(rec => {
-  let typeColor = '#4f46e5';
-  if (rec.type === 'urgent') typeColor = '#dc2626';
-  if (rec.type === 'important') typeColor = '#ea580c';
-  if (rec.type === 'routine') typeColor = '#16a34a';
-  
-  // ✅ 防止 rec.action 为 undefined
-  const safeAction = rec.action ? rec.action.replace(/'/g, "\\'") : '';
+    recommendations.forEach(rec => {
+      let typeColor = '#4f46e5';
+      if (rec.type === 'urgent') typeColor = '#dc2626';
+      if (rec.type === 'important') typeColor = '#ea580c';
+      if (rec.type === 'routine') typeColor = '#16a34a';
+      
+      const safeAction = rec.action ? rec.action.replace(/'/g, "\\'") : '';
 
-  resultHTML += `
-    <div class="recommendation-item" style="border-left-color: ${typeColor};">
-      <div style="display: flex; justify-content: space-between; align-items: start;">
-        <div style="flex: 1;">
-          <strong style="color: ${typeColor};">${rec.title}</strong>
-          <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
+      resultHTML += `
+        <div class="recommendation-item" style="border-left-color: ${typeColor};">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="flex: 1;">
+              <strong style="color: ${typeColor};">${rec.title}</strong>
+              <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
+            </div>
+            ${safeAction ? `
+            <button onclick="alert('${safeAction} action would be triggered here.')" 
+                    style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+              ${rec.action}
+            </button>` : ''}
+          </div>
         </div>
-        ${safeAction ? `
-        <button onclick="alert('${safeAction} action would be triggered here.')" 
-                style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-          ${rec.action}
-        </button>` : ''}
-      </div>
-    </div>
-  `;
-});
-
+      `;
+    });
     
     resultHTML += `
         </div>
@@ -311,7 +304,7 @@ recommendations.forEach(rec => {
 
   // Form submission & API call
   function submitForm() {
-    if(!document.getElementById("consent").checked){
+    if (!document.getElementById("consent").checked) {
       alert("Please agree to the terms before submitting.");
       return;
     }
@@ -357,9 +350,10 @@ recommendations.forEach(rec => {
     })
     .then(data => {
       console.log("Response data:", data);
-      if(data.success) {
-        // Display results
-        displayResults(data);
+      if (data.success) {
+        // Save results to localStorage and redirect to result.html
+        localStorage.setItem("assessment_result", JSON.stringify(data));
+        window.location.href = 'result.html';
       } else {
         document.getElementById("result").innerHTML = `
           <div class="error-message">
