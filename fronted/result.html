@@ -82,46 +82,32 @@
     const angle = (riskScore / 100) * 180 - 90;
     
     const svgHTML = `
-      <svg width="300" height="160" viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg" style="display: block; margin: 0 auto;">
+      <svg width="300" height="140" viewBox="0 0 300 140" xmlns="http://www.w3.org/2000/svg" style="display: block; margin: 0 auto;">
         <!-- 绿色区域 (Low Risk: 0-30) -->
-        <path d="M 30,150 A 120,120 0 0,1 84,40" 
+        <path d="M 30,130 A 120,120 0 0,1 84,20" 
               fill="none" 
               stroke="#22c55e" 
-              stroke-width="40" 
+              stroke-width="35" 
               stroke-linecap="round"/>
         
         <!-- 橙色区域 (Moderate Risk: 30-70) -->
-        <path d="M 84,40 A 120,120 0 0,1 216,40" 
+        <path d="M 84,20 A 120,120 0 0,1 216,20" 
               fill="none" 
               stroke="#f97316" 
-              stroke-width="40" 
+              stroke-width="35" 
               stroke-linecap="round"/>
         
         <!-- 红色区域 (High Risk: 70-100) -->
-        <path d="M 216,40 A 120,120 0 0,1 270,150" 
+        <path d="M 216,20 A 120,120 0 0,1 270,130" 
               fill="none" 
               stroke="#ef4444" 
-              stroke-width="40" 
+              stroke-width="35" 
               stroke-linecap="round"/>
         
-        <!-- 底座 -->
-        <line x1="10" y1="150" x2="290" y2="150" stroke="#94a3b8" stroke-width="3"/>
-        
-        <!-- 刻度线 -->
-        <line x1="30" y1="150" x2="40" y2="140" stroke="#475569" stroke-width="2"/>
-        <line x1="150" y1="30" x2="150" y2="40" stroke="#475569" stroke-width="2"/>
-        <line x1="270" y1="150" x2="260" y2="140" stroke="#475569" stroke-width="2"/>
-        
-        <!-- 标签 -->
-        <text x="30" y="168" font-size="14" font-weight="600" fill="#64748b" text-anchor="start" font-family="Arial">Low</text>
-        <text x="150" y="25" font-size="14" font-weight="600" fill="#64748b" text-anchor="middle" font-family="Arial">Medium</text>
-        <text x="270" y="168" font-size="14" font-weight="600" fill="#64748b" text-anchor="end" font-family="Arial">High</text>
-        
         <!-- 指针（带动画） -->
-        <g transform="rotate(${angle}, 150, 150)" style="transition: transform 0.8s ease-out;">
-          <line x1="150" y1="150" x2="150" y2="55" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
-          <circle cx="150" cy="150" r="10" fill="#334155"/>
-          <circle cx="150" cy="150" r="6" fill="#1e293b"/>
+        <g transform="rotate(${angle}, 150, 130)" style="transition: transform 0.8s ease-out;">
+          <line x1="150" y1="130" x2="150" y2="45" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="150" cy="130" r="8" fill="#1e3a5f"/>
         </g>
       </svg>
     `;
