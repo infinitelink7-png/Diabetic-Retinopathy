@@ -53,6 +53,28 @@
       margin-right: 10px;
     }
     button:hover { background: #4338ca; }
+
+    /* 风险仪表盘样式 */
+    .risk-gauge-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 20px 0 30px 0;
+    }
+    .gauge-wrapper {
+      position: relative;
+      width: 280px;
+      height: 140px;
+      margin-bottom: 15px;
+    }
+    .gauge-svg {
+      width: 100%;
+      height: 100%;
+    }
+    .needle {
+      transition: transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+      transform-origin: 140px 135px;
+    }
   </style>
 </head>
 <body>
@@ -63,6 +85,59 @@
 </div>
 
 <script>
+    // 创建风险仪表盘 SVG
+  function createRiskGauge(riskScore) {
+    // 计算指针角度 (0-100 映射到 -90度到90度)
+    const angle = (riskScore / 100) * 180 - 90;
+
+     return `
+      <div class="gauge-wrapper">
+        <svg class="gauge-svg" viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg">
+          <!-- 绿色区域 (Low Risk: 0-30) -->
+          <path d="M 20 135 A 115 115 0 0 1 70 28" 
+                fill="none" 
+                stroke="#22c55e" 
+                stroke-width="35" 
+                stroke-linecap="round"/>
+          
+          <!-- 橙色区域 (Moderate Risk: 30-70) -->
+          <path d="M 70 28 A 115 115 0 0 1 210 28" 
+                fill="none" 
+                stroke="#f97316" 
+                stroke-width="35" 
+                stroke-linecap="round"/>
+          
+          <!-- 红色区域 (High Risk: 70-100) -->
+          <path d="M 210 28 A 115 115 0 0 1 260 135" 
+                fill="none" 
+                stroke="#ef4444" 
+                stroke-width="35" 
+                stroke-linecap="round"/>
+          
+          <!-- 底座 -->
+          <rect x="0" y="135" width="280" height="3" fill="#64748b"/>
+          
+          <!-- 刻度线 -->
+          <line x1="20" y1="135" x2="30" y2="125" stroke="#475569" stroke-width="2"/>
+          <line x1="140" y1="20" x2="140" y2="30" stroke="#475569" stroke-width="2"/>
+          <line x1="260" y1="135" x2="250" y2="125" stroke="#475569" stroke-width="2"/>
+          
+          <!-- 标签 -->
+          <text x="25" y="155" font-size="13" font-weight="500" fill="#64748b" text-anchor="start">Low</text>
+          <text x="140" y="15" font-size="13" font-weight="500" fill="#64748b" text-anchor="middle">Medium</text>
+          <text x="255" y="155" font-size="13" font-weight="500" fill="#64748b" text-anchor="end">High</text>
+          
+          <!-- 指针 -->
+          <g class="needle" style="transform: rotate(${angle}deg)">
+            <polygon points="140,135 136,50 140,45 144,50" fill="#1e293b"/>
+            <circle cx="140" cy="135" r="10" fill="#334155"/>
+            <circle cx="140" cy="135" r="6" fill="#1e293b"/>
+          </g>
+        </svg>
+      </div>
+    `;
+  }
+
   // 从 localStorage 获取分析结果
   function loadResults() {
     const resultData = JSON.parse(localStorage.getItem("assessment_result") || "{}");
@@ -95,7 +170,7 @@
             ${result.risk_level}
           </div>
           <div style="font-size: 20px; margin: 10px 0; color: #374151;">
-            风险分数: <strong>${result.risk_score}/100</strong>
+            Risk Score: <strong>${result.risk_score}/100</strong>
           </div>
           <div style="color: #6b7280; font-size: 14px;">
             概率: ${(result.probability * 100).toFixed(1)}%
