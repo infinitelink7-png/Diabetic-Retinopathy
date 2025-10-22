@@ -1,11 +1,10 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Diabetic retinopathy risk assessment results</title>
   <style>
-    /* 与 step5.html 相同的 CSS 样式，确保视觉一致性 */
     body { font-family: Arial, sans-serif; background: #f6f8fb; padding: 20px; }
     .card { background: #fff; max-width: 900px; margin: auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     h1 { font-size: 22px; margin-bottom: 10px; }
@@ -53,100 +52,91 @@
       margin-right: 10px;
     }
     button:hover { background: #4338ca; }
-
+    
     /* 风险仪表盘样式 */
     .risk-gauge-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin: 20px 0 30px 0;
+      margin: 20px auto 30px auto;
+      width: 100%;
     }
     .gauge-wrapper {
       position: relative;
-      width: 280px;
-      height: 140px;
-      margin-bottom: 15px;
-    }
-    .gauge-svg {
-      width: 100%;
-      height: 100%;
-    }
-    .needle {
-      transition: transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
-      transform-origin: 140px 135px;
+      width: 300px;
+      height: 160px;
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
 <div class="card">
   <h1>Diabetic retinopathy risk assessment results</h1>
-  <!-- 结果显示区域 -->
   <div id="result"></div>
 </div>
 
 <script>
-    // 创建风险仪表盘 SVG
+  // 创建风险仪表盘 SVG
   function createRiskGauge(riskScore) {
     // 计算指针角度 (0-100 映射到 -90度到90度)
     const angle = (riskScore / 100) * 180 - 90;
-
-     return `
-      <div class="gauge-wrapper">
-        <svg class="gauge-svg" viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg">
-          <!-- 绿色区域 (Low Risk: 0-30) -->
-          <path d="M 20 135 A 115 115 0 0 1 70 28" 
-                fill="none" 
-                stroke="#22c55e" 
-                stroke-width="35" 
-                stroke-linecap="round"/>
-          
-          <!-- 橙色区域 (Moderate Risk: 30-70) -->
-          <path d="M 70 28 A 115 115 0 0 1 210 28" 
-                fill="none" 
-                stroke="#f97316" 
-                stroke-width="35" 
-                stroke-linecap="round"/>
-          
-          <!-- 红色区域 (High Risk: 70-100) -->
-          <path d="M 210 28 A 115 115 0 0 1 260 135" 
-                fill="none" 
-                stroke="#ef4444" 
-                stroke-width="35" 
-                stroke-linecap="round"/>
-          
-          <!-- 底座 -->
-          <rect x="0" y="135" width="280" height="3" fill="#64748b"/>
-          
-          <!-- 刻度线 -->
-          <line x1="20" y1="135" x2="30" y2="125" stroke="#475569" stroke-width="2"/>
-          <line x1="140" y1="20" x2="140" y2="30" stroke="#475569" stroke-width="2"/>
-          <line x1="260" y1="135" x2="250" y2="125" stroke="#475569" stroke-width="2"/>
-          
-          <!-- 标签 -->
-          <text x="25" y="155" font-size="13" font-weight="500" fill="#64748b" text-anchor="start">Low</text>
-          <text x="140" y="15" font-size="13" font-weight="500" fill="#64748b" text-anchor="middle">Medium</text>
-          <text x="255" y="155" font-size="13" font-weight="500" fill="#64748b" text-anchor="end">High</text>
-          
-          <!-- 指针 -->
-          <g class="needle" style="transform: rotate(${angle}deg)">
-            <polygon points="140,135 136,50 140,45 144,50" fill="#1e293b"/>
-            <circle cx="140" cy="135" r="10" fill="#334155"/>
-            <circle cx="140" cy="135" r="6" fill="#1e293b"/>
-          </g>
-        </svg>
-      </div>
+    
+    const svgHTML = `
+      <svg width="300" height="160" viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg" style="display: block; margin: 0 auto;">
+        <!-- 绿色区域 (Low Risk: 0-30) -->
+        <path d="M 30,150 A 120,120 0 0,1 84,40" 
+              fill="none" 
+              stroke="#22c55e" 
+              stroke-width="40" 
+              stroke-linecap="round"/>
+        
+        <!-- 橙色区域 (Moderate Risk: 30-70) -->
+        <path d="M 84,40 A 120,120 0 0,1 216,40" 
+              fill="none" 
+              stroke="#f97316" 
+              stroke-width="40" 
+              stroke-linecap="round"/>
+        
+        <!-- 红色区域 (High Risk: 70-100) -->
+        <path d="M 216,40 A 120,120 0 0,1 270,150" 
+              fill="none" 
+              stroke="#ef4444" 
+              stroke-width="40" 
+              stroke-linecap="round"/>
+        
+        <!-- 底座 -->
+        <line x1="10" y1="150" x2="290" y2="150" stroke="#94a3b8" stroke-width="3"/>
+        
+        <!-- 刻度线 -->
+        <line x1="30" y1="150" x2="40" y2="140" stroke="#475569" stroke-width="2"/>
+        <line x1="150" y1="30" x2="150" y2="40" stroke="#475569" stroke-width="2"/>
+        <line x1="270" y1="150" x2="260" y2="140" stroke="#475569" stroke-width="2"/>
+        
+        <!-- 标签 -->
+        <text x="30" y="168" font-size="14" font-weight="600" fill="#64748b" text-anchor="start" font-family="Arial">Low</text>
+        <text x="150" y="25" font-size="14" font-weight="600" fill="#64748b" text-anchor="middle" font-family="Arial">Medium</text>
+        <text x="270" y="168" font-size="14" font-weight="600" fill="#64748b" text-anchor="end" font-family="Arial">High</text>
+        
+        <!-- 指针（带动画） -->
+        <g transform="rotate(${angle}, 150, 150)" style="transition: transform 0.8s ease-out;">
+          <line x1="150" y1="150" x2="150" y2="55" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="150" cy="150" r="10" fill="#334155"/>
+          <circle cx="150" cy="150" r="6" fill="#1e293b"/>
+        </g>
+      </svg>
     `;
+    
+    return svgHTML;
   }
 
   // 从 localStorage 获取分析结果
   function loadResults() {
     const resultData = JSON.parse(localStorage.getItem("assessment_result") || "{}");
 
-    // 检查是否有结果数据
     if (!resultData || !resultData.success) {
       document.getElementById("result").innerHTML = `
         <div class="error-message">
-          <strong>Error：</strong> Unable to load assessment results. Please return to the previous step and resubmit.
+          <strong>Error:</strong> Unable to load assessment results. Please return to the previous step and resubmit.
           <div style="margin-top: 10px;">
             <button onclick="location.href='step5.html'">Return previous</button>
           </div>
@@ -155,34 +145,40 @@
       return;
     }
 
-    // 提取结果数据
     const result = resultData.prediction;
     const explanation = resultData.explanation;
     const recommendations = resultData.recommendations;
 
-    // 构建结果 HTML，与 step5.html 的 displayResults 一致
+    // 构建结果 HTML，添加仪表盘
     let resultHTML = `
       <div class="result-box">
         <h3 style="text-align: center; margin-bottom: 20px;">Evaluation results</h3>
         
         <div style="text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <div class="risk-${result.risk_level.toLowerCase().replace(' ', '-')}" style="font-size: 28px; margin-bottom: 10px;">
+          
+          <!-- 风险仪表盘 -->
+          <div class="risk-gauge-container">
+            <div class="gauge-wrapper">
+              ${createRiskGauge(result.risk_score)}
+            </div>
+          </div>
+          
+          <div class="risk-${result.risk_level.toLowerCase().replace(' ', '-')}" style="font-size: 28px; margin-bottom: 10px; margin-top: 10px;">
             ${result.risk_level}
           </div>
           <div style="font-size: 20px; margin: 10px 0; color: #374151;">
             Risk Score: <strong>${result.risk_score}/100</strong>
           </div>
           <div style="color: #6b7280; font-size: 14px;">
-            概率: ${(result.probability * 100).toFixed(1)}%
+            Probability: ${(result.probability * 100).toFixed(1)}%
           </div>
         </div>
         
         <div style="margin: 25px 0;">
-          <h4 style="color: #374151; margin-bottom: 15px;">📊 Key Factors Influencing Your Risk：</h4>
+          <h4 style="color: #374151; margin-bottom: 15px;">📊 Key Factors Influencing Your Risk:</h4>
           <div>
     `;
 
-    // 添加关键因素
     explanation.forEach(factor => {
       let impactColor = '#6b7280';
       if (factor.impact === 'High') impactColor = '#dc2626';
@@ -203,10 +199,9 @@
         </div>
         
         <div style="margin: 25px 0;">
-          <h4 style="color: #374151; margin-bottom: 15px;">💡 个性化推荐：</h4>
+          <h4 style="color: #374151; margin-bottom: 15px;">💡 Personalized Recommendations:</h4>
     `;
 
-    // 添加推荐项
     recommendations.forEach(rec => {
       let typeColor = '#4f46e5';
       if (rec.type === 'urgent') typeColor = '#dc2626';
@@ -252,7 +247,6 @@
     document.getElementById("result").innerHTML = resultHTML;
   }
 
-  // 页面加载时调用 loadResults
   window.onload = loadResults;
 </script>
 </body>
