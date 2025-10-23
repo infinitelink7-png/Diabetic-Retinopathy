@@ -228,6 +228,10 @@
           </button>
         </div>
       </div>
+
+      <div style="color: #6b7280; font-size: 13px; margin-top: 10px;">
+       Model Used: ${result.model_used || 'ensemble'}
+      </div>
     `;
 
     document.getElementById("result").innerHTML = resultHTML;

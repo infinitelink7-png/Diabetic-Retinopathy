@@ -7,10 +7,53 @@
     h1 { font-size:22px; margin-bottom:10px; }
     h2 { font-size:18px; margin-top:20px; }
     label { display:block; margin-top:12px; font-size:14px; }
-    input[type="checkbox"] { width:auto; margin-right:6px; }
+    input[type="checkbox"], input[type="radio"] { width:auto; margin-right:6px; }
     button { margin-top:16px; padding:10px 14px; background:#4f46e5; color:#fff; border:none; border-radius:6px; cursor:pointer; margin-right: 10px; }
     button:hover { background:#4338ca; }
     .review-box { background:#f9fafb; padding:10px; border-radius:6px; font-size:14px; line-height:1.5; }
+    .model-selection-box {
+      background: #f0f9ff;
+      border: 2px solid #3b82f6;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .model-option {
+      display: flex;
+      align-items: start;
+      padding: 12px;
+      margin: 8px 0;
+      background: white;
+      border-radius: 6px;
+      border: 2px solid #e5e7eb;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .model-option:hover {
+      border-color: #3b82f6;
+      background: #f8fafc;
+    }
+    .model-option input[type="radio"] {
+      margin-top: 3px;
+    }
+    .model-option.selected {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .model-info {
+      margin-left: 10px;
+      flex: 1;
+    }
+    .model-name {
+      font-weight: bold;
+      color: #1e3a8a;
+      font-size: 15px;
+    }
+    .model-description {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 4px;
+    }
     .result-box {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
@@ -66,6 +109,44 @@
     <h2>Review Your Information</h2>
     <div id="reviewBox" class="review-box"></div>
     
+    <!--AI Model Selection-->
+    <h2>🤖 Select AI Model</h2>
+    <div class="model-selection-box">
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: #374151;">
+        Choose which AI model to use for your risk assessment:
+      </p>
+      
+      <div class="model-option" onclick="selectModel('ensemble')">
+        <input type="radio" name="model" id="model_ensemble" value="ensemble" checked>
+        <div class="model-info">
+          <div class="model-name">🔗 Ensemble (XGBoost + DNN)</div>
+          <div class="model-description">
+            Combines both models for highest accuracy. Recommended for most users.
+          </div>
+        </div>
+      </div>
+      
+      <div class="model-option" onclick="selectModel('xgboost')">
+        <input type="radio" name="model" id="model_xgboost" value="xgboost">
+        <div class="model-info">
+          <div class="model-name">🌳 XGBoost Only</div>
+          <div class="model-description">
+            Tree-based model. Fast and interpretable, good for understanding risk factors.
+          </div>
+        </div>
+      </div>
+      
+      <div class="model-option" onclick="selectModel('dnn')">
+        <input type="radio" name="model" id="model_dnn" value="dnn">
+        <div class="model-info">
+          <div class="model-name">🧠 Deep Neural Network Only</div>
+          <div class="model-description">
+            Advanced deep learning model. Captures complex patterns in data.
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!--Privacy & consent-->
     <p style="margin-top:10px;font-size:13px;">
       <b>Privacy Statement:</b> Your health data is encrypted and anonymized for analysis. We adhere to strict data protection regulations like HIPAA/GDPR. This data will only be used to generate your risk assessment and, with your consent, to improve our AI model.
@@ -88,6 +169,23 @@
 </div>
 
 <script>
+  // Model selection handler
+  function selectModel(modelType) {
+    // Update radio button
+    document.getElementById(`model_${modelType}`).checked = true;
+    
+    // Update visual selection
+    document.querySelectorAll('.model-option').forEach(option => {
+      option.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+  }
+
+  // Initialize selected model visual
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('.model-option').classList.add('selected');
+  });
+
   // Retrieve all previous step data
   function gatherAllData() {
     const step1 = JSON.parse(localStorage.getItem("step1") || "{}");
@@ -153,7 +251,12 @@
     
     backendData.medication_adherence = step4.adherence || 'I never miss a dose';
 
+    // 🆕 Add selected model
+    const selectedModel = document.querySelector('input[name="model"]:checked').value;
+    backendData.selected_model = selectedModel;
+
     console.log("📤 Data being sent to backend:", backendData);
+    console.log("🤖 Selected Model:", selectedModel);
     
     return backendData;
   }
@@ -210,98 +313,6 @@
     document.getElementById("reviewBox").innerHTML = txt;
   }
 
-  // Display prediction results (retained for reference, but not used due to redirect)
-  function displayResults(data) {
-    const result = data.prediction;
-    const explanation = data.explanation;
-    const recommendations = data.recommendations;
-    
-    let resultHTML = `
-      <div class="result-box">
-        <h3 style="text-align: center; margin-bottom: 20px;">Assessment Results</h3>
-        
-        <div style="text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <div class="risk-${result.risk_level.toLowerCase().replace(' ', '-')}" style="font-size: 28px; margin-bottom: 10px;">
-            ${result.risk_level}
-          </div>
-          <div style="font-size: 20px; margin: 10px 0; color: #374151;">
-            Risk Score: <strong>${result.risk_score}/100</strong>
-          </div>
-          <div style="color: #6b7280; font-size: 14px;">
-            Probability: ${(result.probability * 100).toFixed(1)}%
-          </div>
-        </div>
-        
-        <div style="margin: 25px 0;">
-          <h4 style="color: #374151; margin-bottom: 15px;">📊 Key Factors Influencing Your Risk:</h4>
-          <div>
-    `;
-    
-    explanation.forEach(factor => {
-      let impactColor = '#6b7280';
-      if (factor.impact === 'High') impactColor = '#dc2626';
-      if (factor.impact === 'Medium') impactColor = '#ea580c';
-      if (factor.impact === 'Low') impactColor = '#16a34a';
-      
-      resultHTML += `
-        <div class="factor-item">
-          <strong>${factor.factor}</strong>
-          <span style="color: ${impactColor}; font-weight: bold; margin-left: 10px;">(${factor.impact} impact)</span>
-          <div style="color: #6b7280; margin-top: 5px; font-size: 13px;">${factor.explanation}</div>
-        </div>
-      `;
-    });
-    
-    resultHTML += `
-          </div>
-        </div>
-        
-        <div style="margin: 25px 0;">
-          <h4 style="color: #374151; margin-bottom: 15px;">💡 Personalized Recommendations:</h4>
-    `;
-    
-    recommendations.forEach(rec => {
-      let typeColor = '#4f46e5';
-      if (rec.type === 'urgent') typeColor = '#dc2626';
-      if (rec.type === 'important') typeColor = '#ea580c';
-      if (rec.type === 'routine') typeColor = '#16a34a';
-      
-      const safeAction = rec.action ? rec.action.replace(/'/g, "\\'") : '';
-
-      resultHTML += `
-        <div class="recommendation-item" style="border-left-color: ${typeColor};">
-          <div style="display: flex; justify-content: space-between; align-items: start;">
-            <div style="flex: 1;">
-              <strong style="color: ${typeColor};">${rec.title}</strong>
-              <div style="margin-top: 8px; color: #374151;">${rec.message}</div>
-            </div>
-            ${safeAction ? `
-            <button onclick="alert('${safeAction} action would be triggered here.')" 
-                    style="background: ${typeColor}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-              ${rec.action}
-            </button>` : ''}
-          </div>
-        </div>
-      `;
-    });
-    
-    resultHTML += `
-        </div>
-        
-        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-          <a href="history.html" class="btn" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-            📋 View Your Assessment History
-          </a>
-          <button onclick="window.print()" style="background: #6b7280; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;">
-            🖨️ Print Results
-          </button>
-        </div>
-      </div>
-    `;
-    
-    document.getElementById("result").innerHTML = resultHTML;
-  }
-
   // Form submission & API call
   function submitForm() {
     if (!document.getElementById("consent").checked) {
@@ -326,9 +337,13 @@
     userData.session_id = sessionId;
     
     // Show loading message
+    const modelName = userData.selected_model === 'ensemble' ? 'Ensemble (XGBoost + DNN)' : 
+                      userData.selected_model === 'xgboost' ? 'XGBoost' : 'Deep Neural Network';
+    
     document.getElementById("result").innerHTML = `
       <div class="loading">
-        <div style="font-size: 16px; margin-bottom: 10px;">🔍 Analyzing your data with AI...</div>
+        <div style="font-size: 16px; margin-bottom: 10px;">🔬 Analyzing your data with AI...</div>
+        <div style="font-size: 14px; color: #6b7280;">Using ${modelName} model</div>
         <div style="font-size: 14px; color: #6b7280;">This may take a few moments</div>
       </div>
     `;
