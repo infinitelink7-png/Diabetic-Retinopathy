@@ -6,26 +6,16 @@ import joblib
 import xgboost as xgb
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+import traceback
 
-# ===============================
-# 常量定义
-# ===============================
 RANDOM_STATE = 42
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, 'models')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# ===============================
-# 工具函数
-# ===============================
 def ensemble_average(prob1, prob2, weight1=0.5):
-    """Compute weighted average ensemble"""
     return weight1 * prob1 + (1 - weight1) * prob2
 
-
-# ===============================
-# 主类：糖尿病视网膜病变风险模型
-# ===============================
 class DRRiskModel:
     def __init__(self):
         self.models = {}
@@ -34,11 +24,7 @@ class DRRiskModel:
         self.optimal_weight = 0.5
         self.load_or_train_models()
 
-    # ===============================
-    # 加载模型
-    # ===============================
     def load_or_train_models(self):
-        """只加载预训练模型，不再训练"""
         xgb_path = os.path.join(MODEL_DIR, 'xgb_model1.joblib')
         dnn_path_h5 = os.path.join(MODEL_DIR, 'dnn_model.h5')
         dnn_path_keras = os.path.join(MODEL_DIR, 'dnn_model.keras')
@@ -53,27 +39,21 @@ class DRRiskModel:
         if os.path.exists(xgb_path) and (os.path.exists(dnn_path_h5) or os.path.exists(dnn_path_keras)) and os.path.exists(preprocessor_path):
             try:
                 print("✅ Loading pre-trained models...")
-
                 self.models['xgboost'] = joblib.load(xgb_path)
                 print("   ✓ XGBoost loaded")
-
                 if os.path.exists(dnn_path_h5):
                     self.models['dnn'] = tf.keras.models.load_model(dnn_path_h5, compile=False)
                     print("   ✓ DNN (.h5) loaded successfully")
                 else:
                     self.models['dnn'] = tf.keras.models.load_model(dnn_path_keras, compile=False)
                     print("   ✓ DNN (.keras) loaded successfully")
-
                 self.preprocessor = joblib.load(preprocessor_path)
                 print("   ✓ Preprocessor loaded")
-
                 self.is_trained = True
                 print("🎉 All models loaded successfully!")
                 return
-
             except Exception as e:
                 print(f"❌ Error loading models: {e}")
-                import traceback
                 traceback.print_exc()
                 raise RuntimeError(f"Failed to load pre-trained models: {e}")
         else:
@@ -84,7 +64,6 @@ class DRRiskModel:
                 missing_files.append("dnn_model.h5 or dnn_model.keras")
             if not os.path.exists(preprocessor_path):
                 missing_files.append("preprocessor.joblib")
-
             error_msg = f"""
 ❌ Pre-trained models not found!
 Missing files: {', '.join(missing_files)}
@@ -95,9 +74,6 @@ Files in directory: {os.listdir(MODEL_DIR) if os.path.exists(MODEL_DIR) else 'Di
             print(error_msg)
             raise FileNotFoundError(error_msg)
 
-    # ===============================
-    # 数据预处理
-    # ===============================
     def preprocess_user_data(self, user_data):
         try:
             print("\n" + "="*60)
@@ -138,27 +114,35 @@ Files in directory: {os.listdir(MODEL_DIR) if os.path.exists(MODEL_DIR) else 'Di
             features = self.preprocessor.transform(df_user)
             print(f"✅ Final feature shape: {features.shape}")
             print("="*60 + "\n")
-
             return features
-
         except Exception as e:
             print(f"❌ Error in preprocessing: {e}")
-            import traceback
             traceback.print_exc()
             raise e
 
-    # ===============================
-    # 预测风险
-    # ===============================
     def predict_risk(self, user_data):
         try:
             features = self.preprocess_user_data(user_data)
-            xgb_prob = self.models['xgboost'].predict_proba(features)[:, 1][0]
-            dnn_prob = self.models['dnn'].predict(features, verbose=0)[0, 0]
+            selected_model = (user_data.get('selected_model') or 'ensemble').lower()
+            print(f"Using model: {selected_model}")
 
-            final_probability = ensemble_average(xgb_prob, dnn_prob, self.optimal_weight)
-            risk_score = int(final_probability * 100)
+            if selected_model == 'xgboost':
+                xgb_prob = float(self.models['xgboost'].predict_proba(features)[:, 1][0])
+                final_probability = xgb_prob
+                model_used = 'xgboost'
 
+            elif selected_model == 'dnn':
+                dnn_prob = float(self.models['dnn'].predict(features, verbose=0).ravel()[0])
+                final_probability = dnn_prob
+                model_used = 'dnn'
+
+            else:
+                xgb_prob = float(self.models['xgboost'].predict_proba(features)[:, 1][0])
+                dnn_prob = float(self.models['dnn'].predict(features, verbose=0).ravel()[0])
+                final_probability = ensemble_average(xgb_prob, dnn_prob, self.optimal_weight)
+                model_used = 'ensemble'
+
+            risk_score = int(round(final_probability * 100))
             if risk_score >= 70:
                 risk_level = "High Risk"
             elif risk_score >= 30:
@@ -169,142 +153,102 @@ Files in directory: {os.listdir(MODEL_DIR) if os.path.exists(MODEL_DIR) else 'Di
             return {
                 'risk_level': risk_level,
                 'risk_score': risk_score,
-                'probability': round(float(final_probability), 3)
+                'probability': round(float(final_probability), 3),
+                'model_used': model_used
             }
+
         except Exception as e:
             print(f"❌ Prediction error: {e}")
-            import traceback
             traceback.print_exc()
             return {
-                'risk_level': "Low Risk",
-                'risk_score': 15,
-                'probability': 0.15
+                'risk_level': "Unknown",
+                'risk_score': 0,
+                'probability': 0.0,
+                'model_used': user_data.get('selected_model', 'ensemble')
             }
 
-    # ===============================
-    # 可解释性输出（Explainable AI）
-    # ===============================
     def explain_prediction(self, user_data):
+        """Analyze key factors directly from original input data (not feature indices)."""
         try:
-            features = self.preprocess_user_data(user_data)[0]
             explanations = []
 
-            def safe_get(idx, default=0):
-                return features[idx] if len(features) > idx else default
-
-            age = safe_get(0)
-            duration = safe_get(1)
-            hba1c = safe_get(2)
-            fbg = safe_get(3)
-            hypertension = safe_get(4)
-            nephropathy = safe_get(5)
-            neuropathy = safe_get(6)
-            cholesterol = safe_get(7)
-            bmi = safe_get(8)
+            age = float(user_data.get('age', 50))
+            duration = float(user_data.get('duration', 5))
+            hba1c = float(user_data.get('hba1c', 7.0))
+            fbg = float(user_data.get('fbg', 120))
+            hypertension = int(user_data.get('hypertension', 0))
+            nephropathy = int(user_data.get('nephropathy', 0))
+            neuropathy = int(user_data.get('neuropathy', 0))
+            cholesterol = int(user_data.get('cholesterol', 0))
+            bmi = float(user_data.get('BMI', 24.2))
 
             if age > 60:
-                explanations.append({'factor': 'Age', 'impact': 'High',
-                                     'explanation': f'Age {int(age)} increases retinopathy risk'})
+                explanations.append({'factor': 'Age', 'impact': 'High', 'explanation': f'Age {int(age)} increases retinopathy risk'})
             elif age > 40:
-                explanations.append({'factor': 'Age', 'impact': 'Medium',
-                                     'explanation': f'Age {int(age)} moderately affects risk'})
+                explanations.append({'factor': 'Age', 'impact': 'Medium', 'explanation': f'Age {int(age)} moderately affects risk'})
 
             if duration > 10:
-                explanations.append({'factor': 'Diabetes Duration', 'impact': 'High',
-                                     'explanation': f'{int(duration)} years with diabetes significantly increases risk'})
+                explanations.append({'factor': 'Diabetes Duration', 'impact': 'High', 'explanation': f'{int(duration)} years with diabetes significantly increases risk'})
             elif duration > 5:
-                explanations.append({'factor': 'Diabetes Duration', 'impact': 'Medium',
-                                     'explanation': f'{int(duration)} years with diabetes moderately increases risk'})
+                explanations.append({'factor': 'Diabetes Duration', 'impact': 'Medium', 'explanation': f'{int(duration)} years with diabetes moderately increases risk'})
 
             if hba1c > 8.0:
-                explanations.append({'factor': 'Blood Sugar Control (HbA1c)', 'impact': 'High',
-                                     'explanation': f'HbA1c {hba1c:.1f}% indicates poor glucose control'})
+                explanations.append({'factor': 'Blood Sugar (HbA1c)', 'impact': 'High', 'explanation': f'HbA1c {hba1c:.1f}% indicates poor glucose control'})
             elif hba1c > 7.0:
-                explanations.append({'factor': 'Blood Sugar Control (HbA1c)', 'impact': 'Medium',
-                                     'explanation': f'HbA1c {hba1c:.1f}% needs improvement'})
+                explanations.append({'factor': 'Blood Sugar (HbA1c)', 'impact': 'Medium', 'explanation': f'HbA1c {hba1c:.1f}% needs improvement'})
 
             if fbg > 180:
-                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'High',
-                                     'explanation': f'FBG {fbg:.0f} mg/dL indicates poor diabetes control'})
+                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'High', 'explanation': f'FBG {fbg:.0f} mg/dL indicates poor diabetes control'})
             elif fbg > 130:
-                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium',
-                                     'explanation': f'FBG {fbg:.0f} mg/dL needs improvement'})
+                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium', 'explanation': f'FBG {fbg:.0f} mg/dL needs improvement'})
             elif fbg < 70:
-                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium',
-                                     'explanation': f'FBG {fbg:.0f} mg/dL may be too low'})
+                explanations.append({'factor': 'Fasting Blood Glucose', 'impact': 'Medium', 'explanation': f'FBG {fbg:.0f} mg/dL may be too low'})
 
-            if hypertension == 1.0:
-                explanations.append({'factor': 'High Blood Pressure', 'impact': 'Medium',
-                                     'explanation': 'Hypertension can accelerate retinopathy development'})
+            if hypertension == 1:
+                explanations.append({'factor': 'High Blood Pressure', 'impact': 'Medium', 'explanation': 'Hypertension can accelerate retinopathy development'})
 
-            if nephropathy == 1.0:
-                explanations.append({'factor': 'Kidney Disease', 'impact': 'High',
-                                     'explanation': 'Diabetic kidney disease is closely linked to retinopathy'})
+            if nephropathy == 1:
+                explanations.append({'factor': 'Kidney Disease', 'impact': 'High', 'explanation': 'Diabetic kidney disease is closely linked to retinopathy'})
 
-            if neuropathy == 1.0:
-                explanations.append({'factor': 'Nerve Damage', 'impact': 'Medium',
-                                     'explanation': 'Diabetic neuropathy may indicate systemic complications'})
+            if neuropathy == 1:
+                explanations.append({'factor': 'Nerve Damage', 'impact': 'Medium', 'explanation': 'Diabetic neuropathy may indicate systemic complications'})
 
-            if cholesterol == 1.0:
-                explanations.append({'factor': 'High Cholesterol', 'impact': 'Low',
-                                     'explanation': 'High cholesterol can contribute to vascular complications'})
+            if cholesterol == 1:
+                explanations.append({'factor': 'High Cholesterol', 'impact': 'Low', 'explanation': 'High cholesterol can contribute to vascular complications'})
 
             if bmi > 30:
-                explanations.append({'factor': 'Body Mass Index', 'impact': 'Medium',
-                                     'explanation': f'BMI {bmi:.1f} indicates obesity, which can worsen diabetes control'})
+                explanations.append({'factor': 'Body Mass Index', 'impact': 'Medium', 'explanation': f'BMI {bmi:.1f} indicates obesity, which can worsen diabetes control'})
             elif bmi > 25:
-                explanations.append({'factor': 'Body Mass Index', 'impact': 'Low',
-                                     'explanation': f'BMI {bmi:.1f} indicates overweight status'})
+                explanations.append({'factor': 'Body Mass Index', 'impact': 'Low', 'explanation': f'BMI {bmi:.1f} indicates overweight status'})
 
             return explanations[:5]
 
         except Exception as e:
             print(f"❌ Explanation error: {e}")
+            traceback.print_exc()
             return [{
                 'factor': 'Basic Assessment',
                 'impact': 'Low',
                 'explanation': 'Standard diabetes management recommended'
             }]
 
-
-# ===============================
-# 本地测试
-# ===============================
 if __name__ == "__main__":
     print("Testing DRRiskModel...")
     model = DRRiskModel()
-
     test_data = {
-        'age': 55,
-        'diabetes_type': 'Type 2',
-        'duration': 12,
-        'hba1c': 8.5,
-        'fbg': 180,
-        'Management_Insulin': 1,
-        'Management_OralMed': 1,
-        'Management_DietExercise': 0,
-        'blood_sugar_frequency': 'Once a day',
-        'hypertension': 1,
-        'systolic_bp': 140,
-        'diastolic_bp': 90,
-        'nephropathy': 0,
-        'neuropathy': 0,
-        'cholesterol': 1,
-        'smoking': 'Former smoker',
-        'Height_cm': 170,
-        'Weight_kg': 85,
-        'BMI': 29.4,
-        'last_eye_exam': 'More than 2 years ago',
-        'diagnosed_retinopathy': 0,
-        'Vision_Blurriness': 1,
-        'Vision_Floaters': 0,
-        'Vision_Fluctuating': 0,
-        'Vision_Sudden_Loss': 0,
-        'medication_adherence': 'I occasionally miss doses'
+        'age': 55, 'diabetes_type': 'Type 2', 'duration': 12, 'hba1c': 8.5, 'fbg': 180,
+        'Management_Insulin': 1, 'Management_OralMed': 1, 'Management_DietExercise': 0,
+        'blood_sugar_frequency': 'Once a day', 'hypertension': 1, 'systolic_bp': 140,
+        'diastolic_bp': 90, 'nephropathy': 0, 'neuropathy': 0, 'cholesterol': 1,
+        'smoking': 'Former smoker', 'Height_cm': 170, 'Weight_kg': 85, 'BMI': 29.4,
+        'last_eye_exam': 'More than 2 years ago', 'diagnosed_retinopathy': 0,
+        'Vision_Blurriness': 1, 'Vision_Floaters': 0, 'Vision_Fluctuating': 0,
+        'Vision_Sudden_Loss': 0, 'medication_adherence': 'I occasionally miss doses'
     }
-
     prediction = model.predict_risk(test_data)
     print("\n📊 Prediction Results:")
     print(f"  Risk Level: {prediction['risk_level']}")
     print(f"  Risk Score: {prediction['risk_score']}/100")
     print(f"  Probability: {prediction['probability']}")
+    print("\n🔍 Key Factors:")
+    print(model.explain_prediction(test_data))

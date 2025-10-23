@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify, send_from_directory 
+# backend/app.py
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from model_training import DRRiskModel
 from database import init_db
@@ -6,24 +7,18 @@ from models import RiskAssessment, db
 import json
 import uuid
 from datetime import datetime
-import os 
+import os
 import numpy as np
 import re
+import traceback
 
 app = Flask(__name__)
 
 # 🗄️ 智能数据库配置
 def get_database_uri():
-    """
-    智能选择数据库连接
-    优先级: Render环境变量 > 本地XAMPP MySQL > SQLite
-    """
     database_url = os.environ.get('DATABASE_URL', '')
-    
     if database_url:
-        # 生产环境 - Render PostgreSQL
         if database_url.startswith('postgres://'):
-            # 修复PostgreSQL连接字符串
             fixed_url = database_url.replace('postgres://', 'postgresql://', 1)
             print(f"📊 Using PostgreSQL: {fixed_url.split('@')[0]}...")
             return fixed_url
@@ -31,9 +26,7 @@ def get_database_uri():
             print(f"📊 Using custom database: {database_url.split('@')[0]}...")
             return database_url
     else:
-        # 开发环境 - 尝试连接XAMPP MySQL
         try:
-            # 测试MySQL连接
             import pymysql
             conn = pymysql.connect(
                 host='localhost',
@@ -47,21 +40,18 @@ def get_database_uri():
             print("📊 Using XAMPP MySQL: mysql+pymysql://root:****@localhost/dr_risk_db")
             return mysql_url
         except Exception as e:
-            # 回退到SQLite
             print(f"📊 MySQL not available, using SQLite: {e}")
             return 'sqlite:///risk_assessment.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 🔧 完全开放的 CORS 配置（用于调试）
-CORS(app, 
+CORS(app,
      resources={r"/*": {"origins": "*"}},
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      supports_credentials=False)
 
-# 添加全局 CORS 响应头
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -72,207 +62,209 @@ def after_request(response):
 # 初始化数据库
 init_db(app)
 
-# 延迟加载模型
-model = None
+# 延迟加载模型管理器
+model_manager = None
 
-def get_model():
-    global model
-    if model is None:
-        print("📄 Loading ML model...")
-        model = DRRiskModel()
-        print("✅ Model loaded successfully")
-    return model
-
+def get_model_manager():
+    global model_manager
+    if model_manager is None:
+        print("📄 Loading ML model manager...")
+        model_manager = DRRiskModel()
+        print("✅ Model manager loaded")
+    return model_manager
 
 @app.route('/api/predict', methods=['POST', 'OPTIONS'])
 def predict_risk():
-    # 明确处理 OPTIONS 预检请求
+    # 支持浏览器 preflight
     if request.method == 'OPTIONS':
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         return response, 200
-    
-    try:
-        user_data = request.json
-        
-        # 生成会话ID（如果不存在）
-        session_id = user_data.get('session_id')
-        if not session_id:
-            session_id = str(uuid.uuid4())
 
-        # 使用延迟加载的模型
-        current_model = get_model()
-        
-        # 预测风险
-        prediction = current_model.predict_risk(user_data)
-        explanation = current_model.explain_prediction(user_data)
-        recommendations = generate_recommendations(prediction, explanation)
-        
-        # 保存到数据库 - 转换为 Python 原生类型
-        assessment = RiskAssessment(
-            session_id=session_id,
-            input_data=json.dumps(user_data),
-            risk_level=str(prediction['risk_level']),
-            risk_score=float(prediction['risk_score']),
-            probability=float(prediction['probability']),
-            explanation=json.dumps(explanation),
-            recommendations=json.dumps(recommendations)
-        )
-        
-        db.session.add(assessment)
-        db.session.commit()
-        
-        # 返回数据 - 确保所有类型都是 JSON 可序列化的
+    try:
+        user_data = request.get_json(force=True)
+        if not isinstance(user_data, dict):
+            raise ValueError("Invalid JSON payload")
+
+        # ensure session id
+        session_id = user_data.get('session_id') or str(uuid.uuid4())
+        user_data['session_id'] = session_id
+
+        # get model manager
+        model = get_model_manager()
+
+        # run prediction & explanation (wrap in try)
+        try:
+            prediction = model.predict_risk(user_data)
+            explanation = model.explain_prediction(user_data)
+        except Exception as e_inner:
+            print("❌ Internal model error:", e_inner)
+            traceback.print_exc()
+            # fallback to safe default prediction
+            prediction = {
+                'risk_level': 'Unknown',
+                'risk_score': 0,
+                'probability': 0.0,
+                'model_used': user_data.get('selected_model', 'ensemble')
+            }
+            explanation = [{'factor': 'ModelError', 'impact': 'Low', 'explanation': str(e_inner)}]
+
+        # validate prediction structure and normalize types
+        if not isinstance(prediction, dict):
+            print("⚠️ prediction not dict, rebuilding safe prediction.")
+            prediction = {
+                'risk_level': 'Unknown',
+                'risk_score': 0,
+                'probability': float(prediction) if isinstance(prediction, (int, float)) else 0.0,
+                'model_used': user_data.get('selected_model', 'ensemble')
+            }
+
+        # ensure keys exist with fallback
+        risk_level = str(prediction.get('risk_level', 'Unknown'))
+        risk_score = int(prediction.get('risk_score', 0))
+        probability = float(prediction.get('probability', 0.0))
+        model_used = str(prediction.get('model_used', user_data.get('selected_model', 'ensemble')))
+
+        # generate recommendations safely
+        try:
+            recommendations = generate_recommendations(
+                {'risk_level': risk_level, 'risk_score': risk_score, 'probability': probability},
+                explanation if isinstance(explanation, list) else []
+            )
+        except Exception as e_rec:
+            print("❌ Error generating recommendations:", e_rec)
+            traceback.print_exc()
+            recommendations = [{
+                'type': 'routine',
+                'title': 'Standard Care',
+                'message': 'Please consult a healthcare professional for personalized advice.'
+            }]
+
+        # persist to database (use safe conversions)
+        try:
+            assessment = RiskAssessment(
+                session_id=str(session_id),
+                input_data=json.dumps(user_data),
+                risk_level=str(risk_level),
+                risk_score=float(risk_score),
+                probability=float(probability),
+                explanation=json.dumps(explanation),
+                recommendations=json.dumps(recommendations),
+                created_at=datetime.utcnow()
+            )
+            db.session.add(assessment)
+            db.session.commit()
+            assessment_id = str(assessment.id)
+        except Exception as e_db:
+            print("❌ DB save error:", e_db)
+            traceback.print_exc()
+            assessment_id = None
+
+        # response payload
         response = {
             'success': True,
             'prediction': {
-                'risk_level': str(prediction['risk_level']),
-                'risk_score': int(prediction['risk_score']),
-                'probability': float(prediction['probability'])
+                'risk_level': risk_level,
+                'risk_score': risk_score,
+                'probability': probability,
+                'model_used': model_used
             },
             'explanation': explanation,
             'recommendations': recommendations,
-            'assessment_id': str(assessment.id),
-            'session_id': str(session_id)
+            'assessment_id': assessment_id,
+            'session_id': session_id
         }
-        
+
         return jsonify(response), 200
-        
+
     except Exception as e:
-        print(f"❌ Error in predict_risk: {str(e)}")
-        import traceback
+        print(f"❌ Error in predict_risk: {e}")
         traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
-# 根据会话ID获取评估历史
+# The rest of your existing endpoints (assessments, stats, db-test, health, static serving)
 @app.route('/api/assessments/<session_id>', methods=['GET', 'OPTIONS'])
 def get_session_assessments(session_id):
     if request.method == 'OPTIONS':
         return '', 200
-    
     try:
         assessments = RiskAssessment.query.filter_by(session_id=session_id).order_by(RiskAssessment.created_at.desc()).all()
-        
         return jsonify({
             'success': True,
-            'assessments': [assessment.to_dict() for assessment in assessments],
+            'assessments': [a.to_dict() for a in assessments],
             'session_id': session_id
-        })
+        }), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# 获取所有评估记录（用于管理）
 @app.route('/api/assessments', methods=['GET', 'OPTIONS'])
 def get_all_assessments():
     if request.method == 'OPTIONS':
         return '', 200
-    
     try:
         assessments = RiskAssessment.query.order_by(RiskAssessment.created_at.desc()).all()
-        
         return jsonify({
             'success': True,
-            'assessments': [assessment.to_dict() for assessment in assessments],
+            'assessments': [a.to_dict() for a in assessments],
             'total_count': len(assessments)
-        })
+        }), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# 获取特定的评估记录
 @app.route('/api/assessment/<assessment_id>', methods=['GET', 'OPTIONS'])
 def get_assessment(assessment_id):
     if request.method == 'OPTIONS':
         return '', 200
-    
     try:
         assessment = RiskAssessment.query.get(assessment_id)
-        
         if not assessment:
             return jsonify({'success': False, 'error': 'Assessment not found'}), 404
-        
-        return jsonify({
-            'success': True,
-            'assessment': assessment.to_dict()
-        })
+        return jsonify({'success': True, 'assessment': assessment.to_dict()}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# 获取统计信息
 @app.route('/api/stats', methods=['GET', 'OPTIONS'])
 def get_stats():
     if request.method == 'OPTIONS':
         return '', 200
-    
     try:
         total_assessments = RiskAssessment.query.count()
-        
-        # 风险等级统计
         risk_stats = {
             'high': RiskAssessment.query.filter_by(risk_level='High Risk').count(),
             'moderate': RiskAssessment.query.filter_by(risk_level='Moderate Risk').count(),
             'low': RiskAssessment.query.filter_by(risk_level='Low Risk').count()
         }
-        
-        return jsonify({
-            'success': True,
-            'stats': {
-                'total_assessments': total_assessments,
-                'risk_distribution': risk_stats
-            }
-        })
+        return jsonify({'success': True, 'stats': {'total_assessments': total_assessments, 'risk_distribution': risk_stats}}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/db-status', methods=['GET'])
 def db_status():
-    """检查数据库连接状态"""
     try:
-        from models import RiskAssessment
-        # 测试数据库连接和基本操作
         count = RiskAssessment.query.count()
-        
         db_url = app.config['SQLALCHEMY_DATABASE_URI']
         db_type = "Unknown"
-        
         if 'mysql' in db_url:
             db_type = "MySQL (XAMPP)"
         elif 'postgresql' in db_url:
             db_type = "PostgreSQL (Render)"
         elif 'sqlite' in db_url:
             db_type = "SQLite"
-            
-        # 隐藏密码的安全显示
         safe_db_url = re.sub(r':([^@]+)@', ':****@', db_url)
-        
-        return jsonify({
-            'status': 'healthy',
-            'database_type': db_type,
-            'connection': safe_db_url,
-            'total_assessments': count,
-            'tables_working': True
-        }), 200
-        
+        return jsonify({'status': 'healthy', 'database_type': db_type, 'connection': safe_db_url, 'total_assessments': count, 'tables_working': True}), 200
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'database_type': 'Unknown',
-            'error': str(e),
-            'message': '数据库连接失败'
-        }), 500
+        return jsonify({'status': 'error', 'database_type': 'Unknown', 'error': str(e), 'message': '数据库连接失败'}), 500
 
 @app.route('/api/db-test', methods=['GET'])
 def db_test():
-    """测试数据库读写操作"""
     try:
         from models import RiskAssessment, db
         from datetime import datetime
-        
-        # 创建测试记录
         test_assessment = RiskAssessment(
             session_id='test_session_' + str(uuid.uuid4())[:8],
             input_data='{"test": "data"}',
@@ -283,144 +275,84 @@ def db_test():
             recommendations='[]',
             created_at=datetime.utcnow()
         )
-        
         db.session.add(test_assessment)
         db.session.commit()
-        
-        # 读取测试记录
         test_record = RiskAssessment.query.filter_by(session_id=test_assessment.session_id).first()
-        
-        # 清理测试记录
         if test_record:
             db.session.delete(test_record)
             db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': '✅ 数据库读写测试成功！',
-            'test_performed': True
-        }), 200
-        
+        return jsonify({'success': True, 'message': '✅ 数据库读写测试成功！', 'test_performed': True}), 200
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'❌ 数据库测试失败: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'message': f'❌ 数据库测试失败: {str(e)}'}), 500
 
 def generate_recommendations(prediction, explanation):
-    """Generate personalized recommendations"""
     recommendations = []
-    risk_level = prediction['risk_level']
-    risk_score = prediction['risk_score']
-    
-    # Recommendations based on risk level
+    # safe retrieval
+    risk_level = prediction.get('risk_level', 'Low Risk') if isinstance(prediction, dict) else 'Low Risk'
+    risk_score = float(prediction.get('risk_score', 0)) if isinstance(prediction, dict) else 0.0
+
     if risk_level == 'High Risk' or risk_score >= 70:
-        recommendations.append({
-            'type': 'urgent',
-            'title': 'Consult Doctor Immediately',
-            'message': 'We strongly recommend scheduling an appointment with an ophthalmologist for a comprehensive dilated eye examination within 1-3 months.',
-        })
+        recommendations.append({'type': 'urgent', 'title': 'Consult Doctor Immediately', 'message': 'We strongly recommend scheduling an appointment with an ophthalmologist for a comprehensive dilated eye examination within 1-3 months.'})
     elif risk_level == 'Moderate Risk' or risk_score >= 30:
-        recommendations.append({
-            'type': 'important', 
-            'title': 'Regular Monitoring',
-            'message': 'We recommend an eye examination within 6 months and close monitoring of blood sugar and blood pressure.',
-        })
+        recommendations.append({'type': 'important', 'title': 'Regular Monitoring', 'message': 'We recommend an eye examination within 6 months and close monitoring of blood sugar and blood pressure.'})
     else:
-        recommendations.append({
-            'type': 'routine',
-            'title': 'Continue Screening',
-            'message': 'Please maintain good diabetes management and annual eye screening.',
-        })
-    
-    # Specific recommendations based on risk factors
-    for factor in explanation[:3]:
-        factor_name = factor['factor']
-        
-        if 'Blood Sugar' in factor_name or 'HbA1c' in factor_name:
-            recommendations.append({
-                'type': 'management',
-                'title': 'Optimize Blood Sugar Control',
-                'message': 'Good blood sugar control is key to preventing diabetic retinopathy.',
-            })
-        elif 'Blood Pressure' in factor_name:
-            recommendations.append({
-                'type': 'management',
-                'title': 'Control Blood Pressure',
-                'message': 'High blood pressure can accelerate the development of diabetic retinopathy.',
-            })
-        elif 'Kidney' in factor_name or 'Nephropathy' in factor_name:
-            recommendations.append({
-                'type': 'specialist',
-                'title': 'Kidney Health',
-                'message': 'Diabetic kidney disease is closely related to retinopathy. We recommend kidney function tests.',
-            })
-        elif 'Diabetes Duration' in factor_name:
-            recommendations.append({
-                'type': 'monitoring',
-                'title': 'Enhanced Monitoring',
-                'message': 'Longer diabetes duration requires more frequent eye examinations.',
-            })
-    
+        recommendations.append({'type': 'routine', 'title': 'Continue Screening', 'message': 'Please maintain good diabetes management and annual eye screening.'})
+
+    # explanation may be list of factors
+    try:
+        for factor in (explanation or [])[:3]:
+            factor_name = factor.get('factor', '') if isinstance(factor, dict) else str(factor)
+            if 'Blood Sugar' in factor_name or 'HbA1c' in factor_name:
+                recommendations.append({'type': 'management', 'title': 'Optimize Blood Sugar Control', 'message': 'Good blood sugar control is key to preventing diabetic retinopathy.'})
+            elif 'Blood Pressure' in factor_name:
+                recommendations.append({'type': 'management', 'title': 'Control Blood Pressure', 'message': 'High blood pressure can accelerate the development of diabetic retinopathy.'})
+            elif 'Kidney' in factor_name or 'Nephropathy' in factor_name:
+                recommendations.append({'type': 'specialist', 'title': 'Kidney Health', 'message': 'Diabetic kidney disease is closely related to retinopathy. We recommend kidney function tests.'})
+            elif 'Diabetes Duration' in factor_name:
+                recommendations.append({'type': 'monitoring', 'title': 'Enhanced Monitoring', 'message': 'Longer diabetes duration requires more frequent eye examinations.'})
+    except Exception as e:
+        print("⚠️ Error parsing explanation for recommendations:", e)
+
     return recommendations
 
 @app.route('/api/health', methods=['GET', 'OPTIONS'])
 def health_check():
     if request.method == 'OPTIONS':
         return '', 200
-    
-    return jsonify({
-        'status': 'healthy', 
-        'message': 'API service is running normally',
-        'cors_enabled': True,
-        'version': '1.0'
-    }), 200
+    return jsonify({'status': 'healthy', 'message': 'API service is running normally', 'cors_enabled': True, 'version': '1.0'}), 200
 
-# 服务前端HTML文件
+# static front-end serving (adjust path as your project uses)
 @app.route('/fronted/<path:filename>')
 def serve_fronted_files(filename):
     return send_from_directory('../fronted', filename)
 
-# 服务主页面
 @app.route('/home')
 def serve_home():
     return send_from_directory('../fronted', 'step1.html')
 
-# 服务历史页面  
-@app.route('/history')
-def serve_history():
-    return send_from_directory('../fronted', 'history.html')
-
-# 确保根路径也指向前端（修改原来的index路由）
 @app.route('/')
 def serve_index():
     return send_from_directory('../fronted', 'step1.html')
 
-# 添加重定向路由来处理直接访问的HTML文件
+# map static pages
 @app.route('/step1.html')
 def redirect_step1():
     return send_from_directory('../fronted', 'step1.html')
-
 @app.route('/step2.html')
 def redirect_step2():
     return send_from_directory('../fronted', 'step2.html')
-
 @app.route('/step3.html')
 def redirect_step3():
     return send_from_directory('../fronted', 'step3.html')
-
 @app.route('/step4.html')
 def redirect_step4():
     return send_from_directory('../fronted', 'step4.html')
-
 @app.route('/step5.html')
 def redirect_step5():
     return send_from_directory('../fronted', 'step5.html')
-
 @app.route('/history.html')
 def redirect_history():
     return send_from_directory('../fronted', 'history.html')
-
 @app.route('/result.html')
 def redirect_result():
     return send_from_directory('../fronted', 'result.html')
